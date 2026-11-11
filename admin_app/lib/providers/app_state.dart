@@ -14,7 +14,7 @@ class AppState extends ChangeNotifier {
   List<GameMatch> _currentGames = [];
   List<Map<String, dynamic>> _upcomingGames = [];
   String _notice = "경기 종료 후 셔틀콕은 코트 옆 바구니에 넣어주세요.";
-  String _webViewerUrl = "https://your-username.github.io/Infinite_Rally_GG/web_viewer/";
+  String _webViewerUrl = "https://dongbosim.github.io/Infinite_Rally_GG/";
   bool _isUploading = false;
   String? _lastUploadMessage;
 
@@ -129,6 +129,13 @@ class AppState extends ChangeNotifier {
     _lastUploadMessage = null;
     notifyListeners();
 
+    if (!_firestoreService.isFirebaseAvailable) {
+      _isUploading = false;
+      _lastUploadMessage = "Firebase 연동 전입니다 (로컬 매칭 및 QR 코드는 정상 이용 가능합니다).";
+      notifyListeners();
+      return false;
+    }
+
     final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
     final activeCourts = List.generate(_courtCount, (index) => index + 1);
 
@@ -182,4 +189,3 @@ class AppState extends ChangeNotifier {
     });
   }
 }
-
