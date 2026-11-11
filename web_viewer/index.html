@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>무한랠리 실시간 매칭표</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-green: #10b981;
+      --accent-blue: #38bdf8;
+      --team-a: #60a5fa;
+      --team-b: #f472b6;
+      --tier-badge: #e2e8f0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 16px;
+      padding-bottom: 40px;
+      min-height: 100vh;
+    }
+
+    /* 상단 헤더 */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 16px;
+    }
+
+    .title-group h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .title-group p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* 실시간 상태 배지 */
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 9999px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent-green);
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      background-color: var(--accent-green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-green);
+      animation: pulse 1.6s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* 공지사항 배너 */
+    .notice-card {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(99, 102, 241, 0.1));
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      color: #e0f2fe;
+    }
+
+    /* 섹션 제목 */
+    .section-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title span {
+      color: var(--text-main);
+    }
+
+    /* 코트 그리드 */
+    .court-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .court-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      transition: transform 0.2s ease;
+    }
+
+    .court-header {
+      background-color: rgba(255, 255, 255, 0.04);
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .court-name {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--accent-blue);
+    }
+
+    .game-status-tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--accent-green);
+    }
+
+    .court-body {
+      padding: 14px 16px;
+    }
+
+    .match-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .team-box {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .team-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .team-a .team-label { color: var(--team-a); }
+    .team-b .team-label { color: var(--team-b); text-align: right; }
+
+    .player-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .player-chip {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .team-b .player-chip {
+      flex-direction: row-reverse;
+    }
+
+    .tier-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.15);
+      color: #cbd5e1;
+    }
+
+    .vs-separator {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      padding: 0 4px;
+    }
+
+    /* 다음 대기 경기 리스트 */
+    .upcoming-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .upcoming-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px dashed var(--card-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.82rem;
+    }
+
+    .upcoming-order {
+      font-weight: 800;
+      color: var(--accent-blue);
+      margin-right: 10px;
+    }
+
+    .upcoming-teams {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .upcoming-team-text {
+      color: #cbd5e1;
+      font-weight: 500;
+    }
+
+    /* 하단 안내 */
+    .footer-info {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 헤더 영역 -->
+  <header class="header">
+    <div class="title-group">
+      <h1>🏸 무한랠리</h1>
+      <p id="sessionDateText">매칭표 불러오는 중...</p>
+    </div>
+    <div class="live-badge" id="liveStatusBadge">
+      <div class="live-dot" id="liveStatusDot"></div>
+      <span id="liveStatusText">연결 대기중</span>
+    </div>
+  </header>
+
+  <!-- 공지사항 -->
+  <div class="notice-card" id="noticeBox">
+    📢 안내: 코트 배정 후 3분 이내에 코트에 입장해 주세요!
+  </div>
+
+  <!-- 현재 진행 경기 목록 -->
+  <section>
+    <div class="section-title">
+      <span>●</span> 현재 진행 중인 게임
+    </div>
+    <div class="court-grid" id="courtContainer">
+      <!-- Firestore onSnapshot 데이터로 동적 렌더링 -->
+      <div style="text-align:center; padding: 24px; color: var(--text-muted);">
+        실시간 경기 목록을 동기화하고 있습니다...
+      </div>
+    </div>
+  </section>
+
+  <!-- 다음 대기 경기 목록 -->
+  <section>
+    <div class="section-title">
+      <span>⏳</span> 다음 대기 경기
+    </div>
+    <div class="upcoming-list" id="upcomingContainer">
+      <div style="text-align:center; padding: 16px; color: var(--text-muted); font-size: 0.8rem;">
+        대기 중인 경기가 없습니다.
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer-info">
+    본 매칭표는 관리자 앱과 연동되어 실시간으로 자동 갱신됩니다 (새로고침 불필요).
+  </footer>
+
+  <!-- Firebase Modular SDK (v10) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    /**
+     * Firebase 설정 객체
+     * 실제 Firebase 프로젝트 생성 후 발급받은 키를 입력해 주세요.
+     */
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // 오늘 날짜 계산 (YYYY-MM-DD)
+    const getTodayDateString = () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    const todayStr = getTodayDateString();
+    document.getElementById('sessionDateText').textContent = `${todayStr} 실시간 현황`;
+
+    // UI 렌더링 함수
+    function renderMatchDashboard(data) {
+      if (!data) return;
+
+      // 공지사항 업데이트
+      if (data.notice) {
+        document.getElementById('noticeBox').textContent = `📢 ${data.notice}`;
+      }
+
+      // 제목 업데이트
+      if (data.title) {
+        document.getElementById('sessionDateText').textContent = data.title;
+      }
+
+      // 현재 진행 경기 렌더링
+      const courtContainer = document.getElementById('courtContainer');
+      if (data.currentGames && data.currentGames.length > 0) {
+        courtContainer.innerHTML = data.currentGames.map(game => `
+          <div class="court-card">
+            <div class="court-header">
+              <span class="court-name">🏸 제 ${game.courtNumber} 코트</span>
+              <span class="game-status-tag">${game.status === 'in_progress' ? '경기 진행 중' : '대기 중'}</span>
+            </div>
+            <div class="court-body">
+              <div class="match-row">
+                <!-- Team A -->
+                <div class="team-box team-a">
+                  <span class="team-label">Team A</span>
+                  <div class="player-list">
+                    <div class="player-chip">
+                      <span>${game.teamA.player1.name}</span>
+                      <span class="tier-badge">${game.teamA.player1.tier}</span>
+                    </div>
+                    <div class="player-chip">
+                      <span>${game.teamA.player2.name}</span>
+                      <span class="tier-badge">${game.teamA.player2.tier}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="vs-separator">VS</div>
+
+                <!-- Team B -->
+                <div class="team-box team-b">
+                  <span class="team-label">Team B</span>
+                  <div class="player-list">
+                    <div class="player-chip">
+                      <span class="tier-badge">${game.teamB.player1.tier}</span>
+                      <span>${game.teamB.player1.name}</span>
+                    </div>
+                    <div class="player-chip">
+                      <span class="tier-badge">${game.teamB.player2.tier}</span>
+                      <span>${game.teamB.player2.name}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        courtContainer.innerHTML = `
+          <div style="text-align:center; padding: 24px; color: var(--text-muted);">
+            현재 진행 중인 경기가 없습니다.
+          </div>
+        `;
+      }
+
+      // 다음 대기 경기 렌더링
+      const upcomingContainer = document.getElementById('upcomingContainer');
+      if (data.upcomingGames && data.upcomingGames.length > 0) {
+        upcomingContainer.innerHTML = data.upcomingGames.map(game => `
+          <div class="upcoming-card">
+            <span class="upcoming-order">대기 ${game.order}</span>
+            <div class="upcoming-teams">
+              <span class="upcoming-team-text">${game.teamA.join(', ')}</span>
+              <span style="color: var(--text-muted); font-size:0.75rem;">VS</span>
+              <span class="upcoming-team-text">${game.teamB.join(', ')}</span>
+            </div>
+            ${game.designatedCourt ? `<span style="font-size:0.75rem; color:var(--accent-blue);">${game.designatedCourt}코트 예정</span>` : ''}
+          </div>
+        `).join('');
+      } else {
+        upcomingContainer.innerHTML = `
+          <div style="text-align:center; padding: 16px; color: var(--text-muted); font-size: 0.8rem;">
+            대기 중인 경기가 없습니다.
+          </div>
+        `;
+      }
+    }
+
+    // Firebase 연결 및 리스너 등록
+    const isConfigured = firebaseConfig.projectId && firebaseConfig.projectId !== "YOUR_PROJECT_ID";
+
+    if (isConfigured) {
+      try {
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // 당일 세션 문서 실시간 구독 (onSnapshot)
+        const sessionDocRef = doc(db, "daily_sessions", todayStr);
+
+        onSnapshot(sessionDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            renderMatchDashboard(data);
+
+            const badge = document.getElementById('liveStatusBadge');
+            const dot = document.getElementById('liveStatusDot');
+            const text = document.getElementById('liveStatusText');
+            badge.style.borderColor = "rgba(16, 185, 129, 0.4)";
+            badge.style.color = "var(--accent-green)";
+            dot.style.backgroundColor = "var(--accent-green)";
+            text.textContent = "실시간 동기화 중";
+          } else {
+            document.getElementById('liveStatusText').textContent = "오늘 매칭 생성 대기";
+          }
+        }, (error) => {
+          console.error("Firestore 리스너 에러:", error);
+          document.getElementById('liveStatusText').textContent = "연결 오류";
+        });
+      } catch (err) {
+        console.error("Firebase 초기화 에러:", err);
+      }
+    } else {
+      // Firebase 키 미설정 시 데모 프리뷰 모드 실행
+      console.log("Firebase 설정이 비어있어 데모 모드로 프리뷰 데이터를 렌더링합니다.");
+      document.getElementById('liveStatusText').textContent = "데모 프리뷰 모드";
+
+      const demoData = {
+        title: "무한랠리 정기모임 (데모 프리뷰)",
+        notice: "Firebase 연동 전 프리뷰 화면입니다. 관리자 앱에서 매칭표가 전송되면 실시간 반영됩니다.",
+        currentGames: [
+          {
+            courtNumber: 1,
+            gameId: "demo_1",
+            status: "in_progress",
+            teamA: {
+              player1: { name: "김랠리", tier: "B" },
+              player2: { name: "이민턴", tier: "C" }
+            },
+            teamB: {
+              player1: { name: "박스매시", tier: "B" },
+              player2: { name: "최헤어핀", tier: "C" }
+            }
+          },
+          {
+            courtNumber: 2,
+            gameId: "demo_2",
+            status: "in_progress",
+            teamA: {
+              player1: { name: "정클리어", tier: "A" },
+              player2: { name: "강드라이브", tier: "B" }
+            },
+            teamB: {
+              player1: { name: "윤서브", tier: "A" },
+              player2: { name: "송푸시", tier: "B" }
+            }
+          }
+        ],
+        upcomingGames: [
+          {
+            order: 1,
+            designatedCourt: 1,
+            teamA: ["한콕 (C)", "오네트 (D)"],
+            teamB: ["문드롭 (C)", "신앤드 (D)"]
+          }
+        ]
+      };
+
+      renderMatchDashboard(demoData);
+    }
+  </script>
+</body>
+</html>
+

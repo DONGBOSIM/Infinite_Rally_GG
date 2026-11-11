@@ -1,0 +1,25 @@
+{
+  "_comment": "Firebase Console (https://console.firebase.google.com/)에서 Android 앱(패키지명: com.infiniterally.admin_app)을 추가한 뒤 다운로드받은 google-services.json 파일을 이 폴더(admin_app/android/app/)에 저장하세요.",
+  "project_info": {
+    "project_number": "123456789012",
+    "project_id": "infinite-rally-gg",
+    "storage_bucket": "infinite-rally-gg.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:123456789012:android:abcdef0123456789",
+        "android_client_info": {
+          "package_name": "com.infiniterally.admin_app"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "AIzaSyDummyKeyForInfiniteRallyAdmin"
+        }
+      ]
+    }
+  ],
+  "configuration_version": "1"
+}
+
