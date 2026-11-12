@@ -63,6 +63,33 @@
       margin-top: 2px;
     }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 헤더 QR 공유 버튼 */
+    .btn-qr-share {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 11px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+      color: #f1f5f9;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-qr-share:active {
+      transform: scale(0.96);
+      background: rgba(255, 255, 255, 0.16);
+    }
+
     /* 실시간 상태 배지 */
     .live-badge {
       display: inline-flex;
@@ -89,6 +116,238 @@
     @keyframes pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* 내 이름 검색바 */
+    .search-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .search-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 8px 12px;
+      transition: all 0.2s ease;
+    }
+
+    .search-input-wrap:focus-within {
+      border-color: var(--accent-green);
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.25);
+    }
+
+    .search-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #ffffff;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .search-input::placeholder {
+      color: var(--text-muted);
+      font-weight: 400;
+      font-size: 0.82rem;
+    }
+
+    .search-clear-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      cursor: pointer;
+      padding: 0 4px;
+      display: none;
+      line-height: 1;
+    }
+
+    .search-clear-btn:hover {
+      color: #ffffff;
+    }
+
+    .my-status-banner {
+      display: none;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--accent-green);
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 8px 12px;
+      border-radius: 8px;
+      line-height: 1.4;
+      animation: fadeIn 0.25s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 내 경기 & 플레이어 하이라이트 스타일 */
+    .court-card.my-court {
+      border: 2px solid var(--accent-green) !important;
+      box-shadow: 0 0 18px rgba(16, 185, 129, 0.4) !important;
+      transform: translateY(-2px);
+    }
+
+    .my-court-badge {
+      display: inline-flex;
+      align-items: center;
+      background: var(--accent-green);
+      color: #0f172a;
+      font-weight: 800;
+      font-size: 0.68rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 6px;
+      letter-spacing: -0.3px;
+    }
+
+    .player-chip.my-chip {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(56, 189, 248, 0.35)) !important;
+      border: 1.5px solid var(--accent-green) !important;
+      color: #ffffff !important;
+      font-weight: 800 !important;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+    }
+
+    .upcoming-card.my-upcoming {
+      border: 2px solid var(--accent-green) !important;
+      background: rgba(16, 185, 129, 0.12) !important;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
+    }
+
+    .highlight-name {
+      color: #34d399 !important;
+      font-weight: 800 !important;
+      text-decoration: underline;
+    }
+
+    /* QR 코드 공유 모달 */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px;
+      max-width: 320px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+      animation: modalScale 0.2s ease-out;
+    }
+
+    @keyframes modalScale {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .modal-header h3 {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .modal-close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.3rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 2px 6px;
+    }
+
+    .modal-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      line-height: 1.35;
+    }
+
+    #qrcodeWrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #ffffff;
+      padding: 14px;
+      border-radius: 12px;
+      width: fit-content;
+      margin: 0 auto 16px;
+      min-height: 188px;
+      min-width: 188px;
+    }
+
+    #qrcode img, #qrcode canvas {
+      display: block;
+      margin: 0 auto;
+    }
+
+    .modal-btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-modal-action {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+    }
+
+    .btn-copy-link {
+      background: #334155;
+      color: #ffffff;
+    }
+
+    .btn-copy-link:active {
+      background: #475569;
+    }
+
+    .btn-share-native {
+      background: var(--accent-green);
+      color: #0f172a;
     }
 
     /* 공지사항 배너 */
@@ -278,15 +537,39 @@
       <h1>🏸 무한랠리</h1>
       <p id="sessionDateText">매칭표 불러오는 중...</p>
     </div>
-    <div class="live-badge" id="liveStatusBadge">
-      <div class="live-dot" id="liveStatusDot"></div>
-      <span id="liveStatusText">연결 대기중</span>
+    <div class="header-actions">
+      <button type="button" class="btn-qr-share" id="btnOpenQrModal" title="QR 코드로 공유하기">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        <span>QR 공유</span>
+      </button>
+      <div class="live-badge" id="liveStatusBadge">
+        <div class="live-dot" id="liveStatusDot"></div>
+        <span id="liveStatusText">연결 대기중</span>
+      </div>
     </div>
   </header>
 
   <!-- 공지사항 -->
   <div class="notice-card" id="noticeBox">
     📢 안내: 코트 배정 후 3분 이내에 코트에 입장해 주세요!
+  </div>
+
+  <!-- 내 이름 찾기 (자동 하이라이트 & 내 경기 상태 안내) -->
+  <div class="search-card">
+    <div class="search-input-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input type="text" id="myPlayerNameInput" class="search-input" placeholder="내 이름 입력 시 내 코트 자동 강조 (예: 김랠리)" maxlength="10" autocomplete="off" />
+      <button type="button" id="clearSearchBtn" class="search-clear-btn" aria-label="입력 지우기">✕</button>
+    </div>
+    <div id="myStatusBanner" class="my-status-banner"></div>
   </div>
 
   <!-- 현재 진행 경기 목록 -->
@@ -318,14 +601,38 @@
     본 매칭표는 관리자 앱과 연동되어 실시간으로 자동 갱신됩니다 (새로고침 불필요).
   </footer>
 
-  <!-- Firebase Modular SDK (v10) -->
+  <!-- QR 코드 공유 모달 -->
+  <div class="modal-overlay" id="qrModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🏸 웹 전광판 공유</h3>
+        <button type="button" class="modal-close-btn" id="btnCloseQrModal">✕</button>
+      </div>
+      <p class="modal-desc">주변 회원들에게 이 화면을 보여주면 카메라로 즉시 접속할 수 있습니다.</p>
+      <div id="qrcodeWrapper">
+        <div id="qrcode"></div>
+      </div>
+      <div class="modal-btn-group">
+        <button type="button" class="btn-modal-action btn-copy-link" id="btnCopyLink">
+          📋 링크 복사
+        </button>
+        <button type="button" class="btn-modal-action btn-share-native" id="btnNativeShare" style="display:none;">
+          📤 바로 공유
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR 생성 경량 라이브러리 (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- Firebase Modular SDK (v10) & UI Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     /**
      * Firebase 설정 객체
-     * 실제 Firebase 프로젝트 생성 후 발급받은 키를 입력해 주세요.
      */
     const firebaseConfig = {
       apiKey: "AIzaSyDdtrr4WiBbEHXQdMc2qlpPlflwYrBf4mw",
@@ -349,9 +656,124 @@
     const todayStr = getTodayDateString();
     document.getElementById('sessionDateText').textContent = `${todayStr} 실시간 현황`;
 
+    // 상태 저장 변수
+    let latestSessionData = null;
+    const searchInput = document.getElementById('myPlayerNameInput');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const myStatusBanner = document.getElementById('myStatusBanner');
+
+    // 로컬스토리지에 저장된 사용자 이름 복원 (재방문 시 자동 하이라이트)
+    const savedName = localStorage.getItem('infinite_rally_my_name') || '';
+    if (savedName) {
+      searchInput.value = savedName;
+      clearSearchBtn.style.display = 'block';
+    }
+
+    // 이름 검색 및 자동 하이라이트 이벤트
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.trim();
+      clearSearchBtn.style.display = query ? 'block' : 'none';
+      if (query) {
+        localStorage.setItem('infinite_rally_my_name', query);
+      } else {
+        localStorage.removeItem('infinite_rally_my_name');
+      }
+      if (latestSessionData) {
+        renderMatchDashboard(latestSessionData);
+      }
+    });
+
+    clearSearchBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      clearSearchBtn.style.display = 'none';
+      localStorage.removeItem('infinite_rally_my_name');
+      if (latestSessionData) {
+        renderMatchDashboard(latestSessionData);
+      }
+      searchInput.focus();
+    });
+
+    // QR 모달 공유 로직
+    let qrCodeInstance = null;
+    function initQrModal() {
+      const qrModal = document.getElementById('qrModal');
+      const btnOpen = document.getElementById('btnOpenQrModal');
+      const btnClose = document.getElementById('btnCloseQrModal');
+      const btnCopy = document.getElementById('btnCopyLink');
+      const btnShare = document.getElementById('btnNativeShare');
+      const qrcodeContainer = document.getElementById('qrcode');
+
+      const currentUrl = window.location.href;
+
+      function generateQR() {
+        if (qrCodeInstance) return;
+        qrcodeContainer.innerHTML = '';
+        if (typeof QRCode !== 'undefined') {
+          qrCodeInstance = new QRCode(qrcodeContainer, {
+            text: currentUrl,
+            width: 180,
+            height: 180,
+            colorDark: "#0f172a",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        } else {
+          // CDN 불가 시 이미지 Fallback
+          const img = document.createElement('img');
+          img.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(currentUrl)}`;
+          img.alt = 'QR Code';
+          img.style.width = '180px';
+          img.style.height = '180px';
+          qrcodeContainer.appendChild(img);
+        }
+      }
+
+      btnOpen.addEventListener('click', () => {
+        generateQR();
+        qrModal.classList.add('active');
+      });
+
+      btnClose.addEventListener('click', () => {
+        qrModal.classList.remove('active');
+      });
+
+      qrModal.addEventListener('click', (e) => {
+        if (e.target === qrModal) qrModal.classList.remove('active');
+      });
+
+      btnCopy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(currentUrl);
+          const originalText = btnCopy.textContent;
+          btnCopy.textContent = '✅ 복사 완료!';
+          setTimeout(() => { btnCopy.textContent = originalText; }, 2000);
+        } catch (err) {
+          alert('링크 복사에 실패했습니다.');
+        }
+      });
+
+      if (navigator.share) {
+        btnShare.style.display = 'inline-block';
+        btnShare.addEventListener('click', async () => {
+          try {
+            await navigator.share({
+              title: '🏸 무한랠리 실시간 매칭표',
+              text: '무한랠리 배드민턴 동호회 실시간 경기 매칭표입니다.',
+              url: currentUrl
+            });
+          } catch (e) {
+            // 사용자 공유 취소 시 무시
+          }
+        });
+      }
+    }
+
+    initQrModal();
+
     // UI 렌더링 함수
     function renderMatchDashboard(data) {
       if (!data) return;
+      latestSessionData = data;
 
       // 공지사항 업데이트
       if (data.notice) {
@@ -363,52 +785,77 @@
         document.getElementById('sessionDateText').textContent = data.title;
       }
 
+      const query = searchInput.value.trim().toLowerCase();
+      const isMatchName = (name) => {
+        if (!query || !name) return false;
+        return name.toLowerCase().includes(query);
+      };
+
+      let myCourtNum = null;
+      let myWaitOrder = null;
+      let myWaitDesignatedCourt = null;
+
       // 현재 진행 경기 렌더링
       const courtContainer = document.getElementById('courtContainer');
       if (data.currentGames && data.currentGames.length > 0) {
-        courtContainer.innerHTML = data.currentGames.map(game => `
-          <div class="court-card">
-            <div class="court-header">
-              <span class="court-name">🏸 제 ${game.courtNumber} 코트</span>
-              <span class="game-status-tag">${game.status === 'in_progress' ? '경기 진행 중' : '대기 중'}</span>
-            </div>
-            <div class="court-body">
-              <div class="match-row">
-                <!-- Team A -->
-                <div class="team-box team-a">
-                  <span class="team-label">Team A</span>
-                  <div class="player-list">
-                    <div class="player-chip">
-                      <span>${game.teamA.player1.name}</span>
-                      <span class="tier-badge">${game.teamA.player1.tier}</span>
-                    </div>
-                    <div class="player-chip">
-                      <span>${game.teamA.player2.name}</span>
-                      <span class="tier-badge">${game.teamA.player2.tier}</span>
+        courtContainer.innerHTML = data.currentGames.map(game => {
+          const a1Match = isMatchName(game.teamA.player1.name);
+          const a2Match = isMatchName(game.teamA.player2.name);
+          const b1Match = isMatchName(game.teamB.player1.name);
+          const b2Match = isMatchName(game.teamB.player2.name);
+          const isMyCourt = a1Match || a2Match || b1Match || b2Match;
+
+          if (isMyCourt && myCourtNum === null) {
+            myCourtNum = game.courtNumber;
+          }
+
+          return `
+            <div class="court-card ${isMyCourt ? 'my-court' : ''}">
+              <div class="court-header">
+                <div style="display: flex; align-items: center;">
+                  <span class="court-name">🏸 제 ${game.courtNumber} 코트</span>
+                  ${isMyCourt ? '<span class="my-court-badge">내 경기 🏸</span>' : ''}
+                </div>
+                <span class="game-status-tag">${game.status === 'in_progress' ? '경기 진행 중' : '대기 중'}</span>
+              </div>
+              <div class="court-body">
+                <div class="match-row">
+                  <!-- Team A -->
+                  <div class="team-box team-a">
+                    <span class="team-label">Team A</span>
+                    <div class="player-list">
+                      <div class="player-chip ${a1Match ? 'my-chip' : ''}">
+                        <span>${game.teamA.player1.name}</span>
+                        <span class="tier-badge">${game.teamA.player1.tier}</span>
+                      </div>
+                      <div class="player-chip ${a2Match ? 'my-chip' : ''}">
+                        <span>${game.teamA.player2.name}</span>
+                        <span class="tier-badge">${game.teamA.player2.tier}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div class="vs-separator">VS</div>
+                  <div class="vs-separator">VS</div>
 
-                <!-- Team B -->
-                <div class="team-box team-b">
-                  <span class="team-label">Team B</span>
-                  <div class="player-list">
-                    <div class="player-chip">
-                      <span class="tier-badge">${game.teamB.player1.tier}</span>
-                      <span>${game.teamB.player1.name}</span>
-                    </div>
-                    <div class="player-chip">
-                      <span class="tier-badge">${game.teamB.player2.tier}</span>
-                      <span>${game.teamB.player2.name}</span>
+                  <!-- Team B -->
+                  <div class="team-box team-b">
+                    <span class="team-label">Team B</span>
+                    <div class="player-list">
+                      <div class="player-chip ${b1Match ? 'my-chip' : ''}">
+                        <span class="tier-badge">${game.teamB.player1.tier}</span>
+                        <span>${game.teamB.player1.name}</span>
+                      </div>
+                      <div class="player-chip ${b2Match ? 'my-chip' : ''}">
+                        <span class="tier-badge">${game.teamB.player2.tier}</span>
+                        <span>${game.teamB.player2.name}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        `).join('');
+          `;
+        }).join('');
       } else {
         courtContainer.innerHTML = `
           <div style="text-align:center; padding: 24px; color: var(--text-muted);">
@@ -420,23 +867,67 @@
       // 다음 대기 경기 렌더링
       const upcomingContainer = document.getElementById('upcomingContainer');
       if (data.upcomingGames && data.upcomingGames.length > 0) {
-        upcomingContainer.innerHTML = data.upcomingGames.map(game => `
-          <div class="upcoming-card">
-            <span class="upcoming-order">대기 ${game.order}</span>
-            <div class="upcoming-teams">
-              <span class="upcoming-team-text">${game.teamA.join(', ')}</span>
-              <span style="color: var(--text-muted); font-size:0.75rem;">VS</span>
-              <span class="upcoming-team-text">${game.teamB.join(', ')}</span>
+        upcomingContainer.innerHTML = data.upcomingGames.map(game => {
+          const isMineA = (game.teamA || []).some(name => isMatchName(name));
+          const isMineB = (game.teamB || []).some(name => isMatchName(name));
+          const isMyUpcoming = isMineA || isMineB;
+
+          if (isMyUpcoming && myWaitOrder === null) {
+            myWaitOrder = game.order;
+            myWaitDesignatedCourt = game.designatedCourt;
+          }
+
+          const renderTeamText = (teamList) => {
+            return (teamList || []).map(name => {
+              if (isMatchName(name)) {
+                return `<strong class="highlight-name">${name}</strong>`;
+              }
+              return name;
+            }).join(', ');
+          };
+
+          return `
+            <div class="upcoming-card ${isMyUpcoming ? 'my-upcoming' : ''}">
+              <span class="upcoming-order">대기 ${game.order}</span>
+              <div class="upcoming-teams">
+                <span class="upcoming-team-text">${renderTeamText(game.teamA)}</span>
+                <span style="color: var(--text-muted); font-size:0.75rem;">VS</span>
+                <span class="upcoming-team-text">${renderTeamText(game.teamB)}</span>
+              </div>
+              ${game.designatedCourt ? `<span style="font-size:0.75rem; color:var(--accent-blue);">${game.designatedCourt}코트 예정</span>` : ''}
             </div>
-            ${game.designatedCourt ? `<span style="font-size:0.75rem; color:var(--accent-blue);">${game.designatedCourt}코트 예정</span>` : ''}
-          </div>
-        `).join('');
+          `;
+        }).join('');
       } else {
         upcomingContainer.innerHTML = `
           <div style="text-align:center; padding: 16px; color: var(--text-muted); font-size: 0.8rem;">
             대기 중인 경기가 없습니다.
           </div>
         `;
+      }
+
+      // 상단 내 상태 배너 업데이트
+      if (!query) {
+        myStatusBanner.style.display = 'none';
+      } else {
+        myStatusBanner.style.display = 'block';
+        if (myCourtNum !== null) {
+          myStatusBanner.style.background = 'rgba(16, 185, 129, 0.15)';
+          myStatusBanner.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+          myStatusBanner.style.color = 'var(--accent-green)';
+          myStatusBanner.innerHTML = `🎉 <strong>${searchInput.value.trim()}</strong>님은 현재 <strong>제 ${myCourtNum} 코트</strong> 경기 출전 중입니다!`;
+        } else if (myWaitOrder !== null) {
+          myStatusBanner.style.background = 'rgba(56, 189, 248, 0.15)';
+          myStatusBanner.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+          myStatusBanner.style.color = 'var(--accent-blue)';
+          const courtNote = myWaitDesignatedCourt ? ` (${myWaitDesignatedCourt}코트 예정)` : '';
+          myStatusBanner.innerHTML = `⏳ <strong>${searchInput.value.trim()}</strong>님은 <strong>다음 대기 ${myWaitOrder}번</strong>${courtNote}에 배정되어 있습니다.`;
+        } else {
+          myStatusBanner.style.background = 'rgba(148, 163, 184, 0.1)';
+          myStatusBanner.style.borderColor = 'rgba(148, 163, 184, 0.25)';
+          myStatusBanner.style.color = 'var(--text-muted)';
+          myStatusBanner.innerHTML = `🔍 <strong>${searchInput.value.trim()}</strong>님의 현재 진행/대기 경기가 없습니다 (다음 매칭을 기다려주세요).`;
+        }
       }
     }
 
