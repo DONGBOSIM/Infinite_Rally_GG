@@ -9,8 +9,6 @@ build/
 # Android
 **/android/.gradle/
 **/android/local.properties
-**/android/app/google-services.json
-!**/android/app/google-services.json.example
 
 # IDE
 .idea/

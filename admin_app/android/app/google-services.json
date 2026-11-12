@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "657291415795",
+    "project_id": "infinite-rally-gg",
+    "storage_bucket": "infinite-rally-gg.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:657291415795:android:3cf82c53d6227f0d4ca786",
+        "android_client_info": {
+          "package_name": "com.infiniterally.admin_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVyqITPF8B3Qx1lMxY9D8Xv2woArylXRw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+
