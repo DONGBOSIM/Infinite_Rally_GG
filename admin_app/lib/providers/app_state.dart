@@ -14,7 +14,7 @@ class AppState extends ChangeNotifier {
   List<GameMatch> _currentGames = [];
   List<Map<String, dynamic>> _upcomingGames = [];
   String _notice = "경기 종료 후 셔틀콕은 코트 옆 바구니에 넣어주세요.";
-  String _webViewerUrl = "https://dongbosim.github.io/Infinite_Rally_GG/";
+  String _webViewerUrl = "https://infinite-rally-gg.web.app/";
   bool _isUploading = false;
   String? _lastUploadMessage;
 

@@ -68,7 +68,7 @@ flowchart LR
 - GitHub 저장소 설정: **Settings > Pages**
 - **Build and deployment > Source**를 **GitHub Actions**로 선택
 - 코드가 `main` 브랜치에 푸시되면 `.github/workflows/deploy-web.yml` 워크플로우에 의해 웹페이지가 자동 배포됩니다.
-- 배포된 URL(예: `https://<username>.github.io/<repo>/`)을 관리자 앱의 QR 탭에서 입력하면 즉시 동적 QR 코드로 변환됩니다.
+- 배포된 URL(`https://infinite-rally-gg.web.app/`)을 관리자 앱의 QR 탭에서 확인하면 즉시 동적 QR 코드로 변환됩니다.
 
 ### 3. 관리자 APK 다운로드 (GitHub Actions)
 - GitHub 저장소의 **Actions** 탭 이동
