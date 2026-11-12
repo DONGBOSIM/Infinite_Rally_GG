@@ -7,12 +7,20 @@ import 'screens/home_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase 초기화 (google-services.json 미등록 시에도 로컬 앱이 정상 작동하도록 예외 방어)
+  // Firebase 실시간 초기화 (FirebaseOptions 직접 주입)
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: "AIzaSyBVyqITPF8B3Qx1lMxY9D8Xv2woArylXRw",
+        appId: "1:657291415795:android:3cf82c53d6227f0d4ca786",
+        messagingSenderId: "657291415795",
+        projectId: "infinite-rally-gg",
+        storageBucket: "infinite-rally-gg.firebasestorage.app",
+      ),
+    );
   } catch (e) {
     // ignore: avoid_print
-    print('Firebase 초기화 대기 (설정 파일 필요): $e');
+    print('Firebase 초기화 결과: $e');
   }
 
   runApp(
@@ -47,4 +55,3 @@ class InfiniteRallyAdminApp extends StatelessWidget {
     );
   }
 }
-
