@@ -21,6 +21,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
@@ -29,8 +31,9 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
-        selectedItemColor: Colors.indigo.shade800,
-        unselectedItemColor: Colors.grey.shade600,
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        selectedItemColor: isDark ? Colors.blue.shade300 : Colors.indigo.shade800,
+        unselectedItemColor: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(

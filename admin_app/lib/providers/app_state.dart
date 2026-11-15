@@ -49,19 +49,38 @@ class AppState extends ChangeNotifier {
 
   int get presentCount => _members.where((m) => m.isPresent).length;
 
-  // 테마 모드 토글 (라이트 <-> 다크)
-  void toggleTheme() {
-    if (_themeMode == ThemeMode.dark) {
+  // 테마 모드 순환 (시스템 모드 -> 라이트 모드 -> 다크 모드 -> 시스템 모드)
+  String cycleTheme() {
+    if (_themeMode == ThemeMode.system) {
       _themeMode = ThemeMode.light;
-    } else {
+      notifyListeners();
+      return '라이트 모드로 전환되었습니다.';
+    } else if (_themeMode == ThemeMode.light) {
       _themeMode = ThemeMode.dark;
+      notifyListeners();
+      return '다크 모드로 전환되었습니다.';
+    } else {
+      _themeMode = ThemeMode.system;
+      notifyListeners();
+      return '시스템 설정(자동) 모드로 전환되었습니다.';
     }
-    notifyListeners();
   }
 
   void setThemeMode(ThemeMode mode) {
     _themeMode = mode;
     notifyListeners();
+  }
+
+  String get themeModeDescription {
+    switch (_themeMode) {
+      case ThemeMode.light:
+        return '라이트 모드';
+      case ThemeMode.dark:
+        return '다크 모드';
+      case ThemeMode.system:
+      default:
+        return '시스템 설정';
+    }
   }
 
   // 4코트 레슨 모드 토글

@@ -35,9 +35,19 @@ class MatchTab extends StatelessWidget {
         elevation: 1,
         actions: [
           IconButton(
-            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-            tooltip: isDark ? '라이트 모드로 전환' : '다크 모드로 전환',
-            onPressed: () => appState.toggleTheme(),
+            icon: Icon(
+              appState.themeMode == ThemeMode.system
+                  ? Icons.brightness_auto
+                  : (appState.themeMode == ThemeMode.dark ? Icons.dark_mode : Icons.light_mode),
+            ),
+            tooltip: '테마: ${appState.themeModeDescription} (터치하여 순환)',
+            onPressed: () {
+              final msg = appState.cycleTheme();
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(msg), duration: const Duration(seconds: 1)),
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.campaign),
@@ -253,39 +263,87 @@ class MatchTab extends StatelessWidget {
                               // Team A
                               Expanded(
                                 child: Container(
-                                  padding: const EdgeInsets.all(8),
+                                  padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.shade50,
+                                    color: isDark ? const Color(0xFF1E3A5F) : Colors.blue.shade50,
                                     borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isDark ? Colors.blue.shade700 : Colors.blue.shade200,
+                                      width: 1,
+                                    ),
                                   ),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Text('Team A', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 11)),
-                                      const SizedBox(height: 4),
-                                      ...game.teamA.map((p) => Text('${p.name} (${p.tier})', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+                                      Text(
+                                        'Team A',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.blue.shade300 : Colors.blue.shade800,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      ...game.teamA.map((p) => Padding(
+                                            padding: const EdgeInsets.only(bottom: 3),
+                                            child: Text(
+                                              '${p.name} (${p.tier})',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: isDark ? Colors.white : Colors.black87,
+                                              ),
+                                            ),
+                                          )),
                                     ],
                                   ),
                                 ),
                               ),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 10),
-                                child: Text('VS', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                child: Text(
+                                  'VS',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                  ),
+                                ),
                               ),
                               // Team B
                               Expanded(
                                 child: Container(
-                                  padding: const EdgeInsets.all(8),
+                                  padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: Colors.pink.shade50,
+                                    color: isDark ? const Color(0xFF4C1D4F) : Colors.pink.shade50,
                                     borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isDark ? Colors.pink.shade700 : Colors.pink.shade200,
+                                      width: 1,
+                                    ),
                                   ),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Text('Team B', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.pink, fontSize: 11)),
-                                      const SizedBox(height: 4),
-                                      ...game.teamB.map((p) => Text('${p.name} (${p.tier})', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+                                      Text(
+                                        'Team B',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.pink.shade300 : Colors.pink.shade800,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      ...game.teamB.map((p) => Padding(
+                                            padding: const EdgeInsets.only(bottom: 3),
+                                            child: Text(
+                                              '${p.name} (${p.tier})',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: isDark ? Colors.white : Colors.black87,
+                                              ),
+                                            ),
+                                          )),
                                     ],
                                   ),
                                 ),
@@ -315,22 +373,29 @@ class MatchTab extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final wait = upcomingGames[index];
                   return Card(
-                    color: Colors.grey.shade50,
+                    color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade50,
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
                       dense: true,
                       leading: CircleAvatar(
                         radius: 12,
-                        backgroundColor: Colors.grey.shade400,
+                        backgroundColor: isDark ? const Color(0xFF334155) : Colors.grey.shade400,
                         child: Text('${wait['order']}', style: const TextStyle(fontSize: 11, color: Colors.white)),
                       ),
                       title: Text(
                         '${(wait['teamA'] as List).join(', ')}  VS  ${(wait['teamB'] as List).join(', ')}',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
                       ),
                       trailing: Text(
                         '${wait['designatedCourt']}코트 예정',
-                        style: TextStyle(color: Colors.blue.shade700, fontSize: 12),
+                        style: TextStyle(
+                          color: isDark ? Colors.blue.shade300 : Colors.blue.shade700,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   );

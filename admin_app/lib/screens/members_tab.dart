@@ -33,11 +33,21 @@ class _MembersTabState extends State<MembersTab> {
         title: const Text('회원 관리'),
         elevation: 1,
         actions: [
-          // 테마 전환 버튼 (라이트 <-> 다크)
+          // 테마 전환 버튼 (시스템 -> 라이트 -> 다크 3단계 순환)
           IconButton(
-            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-            tooltip: isDark ? '라이트 모드로 전환' : '다크 모드로 전환',
-            onPressed: () => appState.toggleTheme(),
+            icon: Icon(
+              appState.themeMode == ThemeMode.system
+                  ? Icons.brightness_auto
+                  : (appState.themeMode == ThemeMode.dark ? Icons.dark_mode : Icons.light_mode),
+            ),
+            tooltip: '테마: ${appState.themeModeDescription} (터치하여 순환)',
+            onPressed: () {
+              final msg = appState.cycleTheme();
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(msg), duration: const Duration(seconds: 1)),
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.person_add),

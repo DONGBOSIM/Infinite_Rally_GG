@@ -11,12 +11,28 @@ class QrTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final webUrl = appState.webViewerUrl;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('회원 안내용 QR 코드'),
         elevation: 1,
         actions: [
+          IconButton(
+            icon: Icon(
+              appState.themeMode == ThemeMode.system
+                  ? Icons.brightness_auto
+                  : (appState.themeMode == ThemeMode.dark ? Icons.dark_mode : Icons.light_mode),
+            ),
+            tooltip: '테마: ${appState.themeModeDescription} (터치하여 순환)',
+            onPressed: () {
+              final msg = appState.cycleTheme();
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(msg), duration: const Duration(seconds: 1)),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.edit),
             tooltip: '웹페이지 접속 URL 수정',
@@ -36,7 +52,7 @@ class QrTab extends StatelessWidget {
             Text(
               '동호회 회원들에게 이 화면을 보여주세요.\n스마트폰 기본 카메라로 비추면 바로 웹페이지로 이동합니다.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade700, height: 1.4),
+              style: TextStyle(fontSize: 13, color: isDark ? Colors.grey.shade400 : Colors.grey.shade700, height: 1.4),
             ),
             const SizedBox(height: 24),
 
