@@ -101,11 +101,11 @@
 - [x] `admin_app`: 다중 관리자 앱 간 실시간 동기화 리스너(`Firestore.collection.snapshots()`) 연결
 
 ### 📌 Phase 2: 회원 관리 & 스마트 출석 (참여자/콕/OCR)
-- [ ] `admin_app/lib/screens/members_tab.dart`: `[전체 회원]` / `[오늘 참여자]` 2개 탭 분리
-- [ ] `admin_app`: 온디바이스 `google_mlkit_text_recognition` 패키지 연동
-- [ ] `admin_app`: 투표 캡처 이미지 선택 시 이름 자동 추출 및 기존 회원 자동 매칭 UI 구현
-- [ ] `admin_app`: 게스트 간편 수동 추가 (`G ` 자동 접두사) 기능 구현
-- [ ] `admin_app`: 오늘 참여자 콕 제출(출석) 체크박스 및 레슨 신청 토글 UI 구현
+- [x] `admin_app/lib/screens/members_tab.dart`: `[전체 회원]` / `[오늘 참여자]` 2개 탭 분리
+- [x] `admin_app`: 온디바이스 `google_mlkit_text_recognition` 패키지 연동
+- [x] `admin_app`: 투표 캡처 이미지 선택 시 이름 자동 추출 및 기존 회원 자동 매칭 UI 구현
+- [x] `admin_app`: 게스트 간편 수동 추가 (`G ` 자동 접두사) 기능 구현
+- [x] `admin_app`: 오늘 참여자 콕 제출(출석) 체크박스 및 레슨 신청 토글 UI 구현
 
 ### 📌 Phase 3: 매칭 알고리즘 고도화 & 음성 호명
 - [ ] `admin_app/lib/services/matching_service.dart`: S~E 급수 기반 밸런스 로직 개선

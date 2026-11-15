@@ -48,6 +48,9 @@ class AppState extends ChangeNotifier {
   bool get isRemoteSyncActive => _isRemoteSyncActive;
 
   int get presentCount => _members.where((m) => m.isPresent).length;
+  List<Member> get todayAttendees => _members.where((m) => m.isPresent).toList();
+  int get submittedShuttleCount => _members.where((m) => m.isPresent && m.hasSubmittedShuttle).length;
+  int get lessonCount => _members.where((m) => m.isPresent && m.isLesson).length;
 
   // 테마 모드 순환 (시스템 모드 -> 라이트 모드 -> 다크 모드 -> 시스템 모드)
   String cycleTheme() {
@@ -169,6 +172,61 @@ class AppState extends ChangeNotifier {
       }
       notifyListeners();
     }
+  }
+
+  // 레슨 신청 여부 토글
+  void toggleLesson(String memberId) {
+    final index = _members.indexWhere((m) => m.id == memberId);
+    if (index != -1) {
+      _members[index].isLesson = !_members[index].isLesson;
+      notifyListeners();
+    }
+  }
+
+  // 게스트 간편 수동 추가 (자동 G 접두사 부여 및 출석/콕 제출 기본값 true)
+  void addGuest({
+    required String name,
+    required String tier,
+    required String gender,
+  }) {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) return;
+    final formattedName = cleanName.startsWith('G ') ? cleanName : 'G $cleanName';
+    final newGuest = Member(
+      id: 'guest_${DateTime.now().millisecondsSinceEpoch}',
+      name: formattedName,
+      tier: tier,
+      gender: gender,
+      isPresent: true,
+      hasSubmittedShuttle: true,
+      isGuest: true,
+    );
+    _members.add(newGuest);
+    notifyListeners();
+  }
+
+  // OCR 투표 캡처 결과 일괄 적용 (기존 회원 출석 처리 + 게스트 일괄 등록)
+  void applyOcrBatch({
+    required List<String> memberIds,
+    required List<String> newGuestNames,
+    String defaultGuestTier = 'C',
+  }) {
+    // 1. 기존 회원 참석 처리
+    for (final id in memberIds) {
+      final idx = _members.indexWhere((m) => m.id == id);
+      if (idx != -1) {
+        _members[idx].isPresent = true;
+      }
+    }
+
+    // 2. 신규 게스트 등록
+    for (final gName in newGuestNames) {
+      if (gName.trim().isNotEmpty) {
+        addGuest(name: gName.trim(), tier: defaultGuestTier, gender: 'M');
+      }
+    }
+
+    notifyListeners();
   }
 
   // 전체 출석 처리 / 전체 해제
