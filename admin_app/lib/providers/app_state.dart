@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/member.dart';
 import '../models/game_match.dart';
@@ -18,8 +19,17 @@ class AppState extends ChangeNotifier {
   bool _isUploading = false;
   String? _lastUploadMessage;
 
+  // Phase 1 확장: 테마 모드 & 레슨 코트 & 다중 관리자 동기화
+  ThemeMode _themeMode = ThemeMode.system;
+  bool _isLessonCourtEnabled = true; // 4코트 레슨 모드 활성화 여부
+  String _lessonCoach = "코치님";
+  List<Map<String, dynamic>> _lessonQueue = [];
+  StreamSubscription<DailySession?>? _sessionSubscription;
+  bool _isRemoteSyncActive = false;
+
   AppState() {
     _initSampleMembers();
+    initRealtimeSync();
   }
 
   // Getters
@@ -31,8 +41,39 @@ class AppState extends ChangeNotifier {
   String get webViewerUrl => _webViewerUrl;
   bool get isUploading => _isUploading;
   String? get lastUploadMessage => _lastUploadMessage;
+  ThemeMode get themeMode => _themeMode;
+  bool get isLessonCourtEnabled => _isLessonCourtEnabled;
+  String get lessonCoach => _lessonCoach;
+  List<Map<String, dynamic>> get lessonQueue => _lessonQueue;
+  bool get isRemoteSyncActive => _isRemoteSyncActive;
 
   int get presentCount => _members.where((m) => m.isPresent).length;
+
+  // 테마 모드 토글 (라이트 <-> 다크)
+  void toggleTheme() {
+    if (_themeMode == ThemeMode.dark) {
+      _themeMode = ThemeMode.light;
+    } else {
+      _themeMode = ThemeMode.dark;
+    }
+    notifyListeners();
+  }
+
+  void setThemeMode(ThemeMode mode) {
+    _themeMode = mode;
+    notifyListeners();
+  }
+
+  // 4코트 레슨 모드 토글
+  void toggleLessonCourt(bool enabled) {
+    _isLessonCourtEnabled = enabled;
+    notifyListeners();
+  }
+
+  void setLessonCoach(String coachName) {
+    _lessonCoach = coachName;
+    notifyListeners();
+  }
 
   void setCourtCount(int count) {
     if (count > 0 && count <= 10) {
@@ -51,11 +92,62 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // 다중 관리자 실시간 양방향 동기화 리스너
+  void initRealtimeSync() {
+    if (!_firestoreService.isFirebaseAvailable) return;
+
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    _sessionSubscription?.cancel();
+
+    _sessionSubscription = _firestoreService.listenDailySession(todayStr).listen((session) {
+      if (session == null || _isUploading) return;
+
+      _isRemoteSyncActive = true;
+      _currentGames = session.currentGames;
+      _upcomingGames = session.upcomingGames;
+      _notice = session.notice;
+      _isLessonCourtEnabled = session.isLessonCourtEnabled;
+      _lessonCoach = session.lessonCoach;
+      _lessonQueue = session.lessonQueue;
+
+      // 원격에 회원 목록이 있으면 로컬 회원 출석/경기 수 상태 동기화
+      if (session.members.isNotEmpty) {
+        for (final remoteM in session.members) {
+          final idx = _members.indexWhere((m) => m.id == remoteM.id);
+          if (idx != -1) {
+            _members[idx].isPresent = remoteM.isPresent;
+            _members[idx].matchCountToday = remoteM.matchCountToday;
+            _members[idx].hasSubmittedShuttle = remoteM.hasSubmittedShuttle;
+            _members[idx].isLesson = remoteM.isLesson;
+            _members[idx].fixedPartnerId = remoteM.fixedPartnerId;
+          } else {
+            _members.add(remoteM);
+          }
+        }
+      }
+
+      notifyListeners();
+    });
+  }
+
   // 회원 출석 토글
   void toggleAttendance(String memberId) {
     final index = _members.indexWhere((m) => m.id == memberId);
     if (index != -1) {
       _members[index].isPresent = !_members[index].isPresent;
+      notifyListeners();
+    }
+  }
+
+  // 콕 제출(출석 확정) 토글
+  void toggleShuttleSubmission(String memberId) {
+    final index = _members.indexWhere((m) => m.id == memberId);
+    if (index != -1) {
+      _members[index].hasSubmittedShuttle = !_members[index].hasSubmittedShuttle;
+      // 콕 제출 시 자동으로 출석 처리
+      if (_members[index].hasSubmittedShuttle) {
+        _members[index].isPresent = true;
+      }
       notifyListeners();
     }
   }
@@ -72,6 +164,15 @@ class AppState extends ChangeNotifier {
   void addMember(Member member) {
     _members.add(member);
     notifyListeners();
+  }
+
+  // 회원 정보 업데이트
+  void updateMember(Member updated) {
+    final index = _members.indexWhere((m) => m.id == updated.id);
+    if (index != -1) {
+      _members[index] = updated;
+      notifyListeners();
+    }
   }
 
   // 회원 삭제
@@ -147,6 +248,10 @@ class AppState extends ChangeNotifier {
       upcomingGames: _upcomingGames,
       notice: _notice,
       updatedAt: DateTime.now(),
+      isLessonCourtEnabled: _isLessonCourtEnabled,
+      lessonCoach: _lessonCoach,
+      lessonQueue: _lessonQueue,
+      members: _members,
     );
 
     final success = await _firestoreService.uploadDailySession(session);
@@ -157,7 +262,7 @@ class AppState extends ChangeNotifier {
     return success;
   }
 
-  // 50명 샘플 회원 초기화 (테스트용)
+  // S, A, B, C, D, E 6단계 급수 샘플 회원 초기화 (50명)
   void _initSampleMembers() {
     final sampleNames = [
       "김랠리", "이민턴", "박스매시", "최헤어핀", "정클리어", "강드라이브", "윤서브", "송푸시",
@@ -169,7 +274,7 @@ class AppState extends ChangeNotifier {
       "우집중", "육체력"
     ];
 
-    final tiers = ["A", "B", "C", "D", "초심"];
+    final tiers = ["S", "A", "B", "C", "D", "E"];
     final genders = ["M", "F"];
 
     _members = List.generate(sampleNames.length, (index) {
@@ -184,8 +289,15 @@ class AppState extends ChangeNotifier {
         tier: tier,
         gender: gender,
         isPresent: isPresent,
+        hasSubmittedShuttle: isPresent,
         matchCountToday: 0,
       );
     });
+  }
+
+  @override
+  void dispose() {
+    _sessionSubscription?.cancel();
+    super.dispose();
   }
 }

@@ -46,6 +46,41 @@ class FirestoreService {
     }
   }
 
+  /// 당일 세션 데이터 실시간 구독 (다중 관리자 실시간 동기화용)
+  Stream<DailySession?> listenDailySession(String sessionDate) {
+    final db = firestore;
+    if (db == null) return const Stream.empty();
+
+    return db
+        .collection('daily_sessions')
+        .doc(sessionDate)
+        .snapshots()
+        .map((snapshot) {
+      if (snapshot.exists && snapshot.data() != null) {
+        return DailySession.fromMap(snapshot.data()!);
+      }
+      return null;
+    });
+  }
+
+  /// 당일 세션 데이터 1회 가져오기
+  Future<DailySession?> fetchDailySession(String sessionDate) async {
+    final db = firestore;
+    if (db == null) return null;
+
+    try {
+      final doc = await db.collection('daily_sessions').doc(sessionDate).get();
+      if (doc.exists && doc.data() != null) {
+        return DailySession.fromMap(doc.data()!);
+      }
+      return null;
+    } catch (e) {
+      // ignore: avoid_print
+      print('Firestore fetchDailySession Error: $e');
+      return null;
+    }
+  }
+
   /// 전체 회원 목록을 Firestore 'users' 컬렉션에 일괄 저장
   Future<bool> saveMembers(List<Member> members) async {
     final db = firestore;

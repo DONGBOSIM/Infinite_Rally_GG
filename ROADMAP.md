@@ -94,11 +94,11 @@
 ## 🚀 단계별 구현 체크리스트 (Milestones)
 
 ### 📌 Phase 1: 데이터 모델 및 기본 구조 개편 (기반 작업)
-- [ ] `lib/models/member.dart`: 급수 체계를 `S, A, B, C, D, E`로 확장 및 게스트(`isGuest`) 플래그 추가
-- [ ] `lib/models/game_match.dart`: 4코트 레슨/게임 모드 및 고정 페어 필드 정의
-- [ ] `lib/models/daily_session.dart`: 레슨 코트 상태 및 레슨 큐 데이터 구조 반영
-- [ ] `admin_app`: 라이트/다크 테마(`ThemeData`) 설정 추가
-- [ ] `admin_app`: 다중 관리자 앱 간 실시간 동기화 리스너(`Firestore.collection.snapshots()`) 연결
+- [x] `lib/models/member.dart`: 급수 체계를 `S, A, B, C, D, E`로 확장 및 게스트(`isGuest`) 플래그 추가
+- [x] `lib/models/game_match.dart`: 4코트 레슨/게임 모드 및 고정 페어 필드 정의
+- [x] `lib/models/daily_session.dart`: 레슨 코트 상태 및 레슨 큐 데이터 구조 반영
+- [x] `admin_app`: 라이트/다크 테마(`ThemeData`) 설정 추가
+- [x] `admin_app`: 다중 관리자 앱 간 실시간 동기화 리스너(`Firestore.collection.snapshots()`) 연결
 
 ### 📌 Phase 2: 회원 관리 & 스마트 출석 (참여자/콕/OCR)
 - [ ] `admin_app/lib/screens/members_tab.dart`: `[전체 회원]` / `[오늘 참여자]` 2개 탭 분리

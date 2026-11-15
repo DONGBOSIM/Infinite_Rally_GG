@@ -11,11 +11,34 @@ class MatchTab extends StatelessWidget {
     final currentGames = appState.currentGames;
     final upcomingGames = appState.upcomingGames;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('게임 매칭 및 코트 관리'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('게임 매칭 및 코트 관리'),
+            if (appState.isRemoteSyncActive) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade600,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text('동기화중', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ],
+        ),
         elevation: 1,
         actions: [
+          IconButton(
+            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+            tooltip: isDark ? '라이트 모드로 전환' : '다크 모드로 전환',
+            onPressed: () => appState.toggleTheme(),
+          ),
           IconButton(
             icon: const Icon(Icons.campaign),
             tooltip: '공지사항 수정',
@@ -48,7 +71,7 @@ class MatchTab extends StatelessWidget {
                             IconButton(
                               icon: const Icon(Icons.remove_circle_outline),
                               onPressed: appState.courtCount > 1
-                                  ? () => appState.setCourtCount(appState.courtCount - 1)
+                                   () => appState.setCourtCount(appState.courtCount - 1)
                                   : null,
                             ),
                             Text(
@@ -65,7 +88,23 @@ class MatchTab extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const Divider(height: 16),
+                    const Divider(height: 12),
+                    // 4코트 레슨 모드 원클릭 토글
+                    SwitchListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('제 4코트 레슨 모드', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: Text(
+                        appState.isLessonCourtEnabled
+                            ? '1~3코트 게임 진행 / 4코트 레슨 코트로 운영'
+                            : '1~4코트 전체 게임 코트로 운영',
+                        style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                      ),
+                      value: appState.isLessonCourtEnabled,
+                      activeColor: Colors.amber.shade700,
+                      onChanged: (val) => appState.toggleLessonCourt(val),
+                    ),
+                    const Divider(height: 12),
                     Row(
                       children: [
                         Expanded(

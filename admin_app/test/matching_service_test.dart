@@ -73,6 +73,25 @@ void main() {
       final game = result.currentGames.first;
       expect(game.balanceDifference, 0); // 완벽한 밸런스 달성 확인
     });
+
+    test('확장된 6단계 급수(S~E) 밸런싱이 올바르게 계산된다', () {
+      final members = [
+        Member(id: '1', name: 'S급선수', tier: 'S', gender: 'M', isPresent: true), // 5점
+        Member(id: '2', name: 'B급선수', tier: 'B', gender: 'M', isPresent: true), // 3점
+        Member(id: '3', name: 'C급선수', tier: 'C', gender: 'M', isPresent: true), // 2점
+        Member(id: '4', name: 'E급선수', tier: 'E', gender: 'M', isPresent: true), // 0점
+      ];
+
+      // 이상적인 밸런스: (S + E = 5+0 = 5점) vs (B + C = 3+2 = 5점) -> 점수 차이 0
+      final result = MatchingService.generateBalancedMatches(
+        members: members,
+        courtCount: 1,
+      );
+
+      expect(result.currentGames.length, 1);
+      final game = result.currentGames.first;
+      expect(game.balanceDifference, 0);
+    });
   });
 }
 

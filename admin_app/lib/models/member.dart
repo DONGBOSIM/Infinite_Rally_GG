@@ -1,10 +1,14 @@
 class Member {
   final String id;
   final String name;
-  final String tier; // "A", "B", "C", "D", "초심"
+  final String tier; // "S", "A", "B", "C", "D", "E" (하위 호환: "초심"은 "E"로 취급)
   final String gender; // "M", "F"
   bool isPresent; // 당일 참석 여부
   int matchCountToday; // 오늘 경기 수
+  bool isGuest; // 게스트 여부
+  bool hasSubmittedShuttle; // 콕 제출(출석 확정) 여부
+  bool isLesson; // 레슨 신청 여부
+  String? fixedPartnerId; // 고정 페어(파트너) 회원 ID
 
   Member({
     required this.id,
@@ -13,11 +17,17 @@ class Member {
     required this.gender,
     this.isPresent = false,
     this.matchCountToday = 0,
+    this.isGuest = false,
+    this.hasSubmittedShuttle = false,
+    this.isLesson = false,
+    this.fixedPartnerId,
   });
 
-  // 급수별 밸런스 점수 (매칭 밸런싱용)
+  // 6단계 급수별 밸런스 점수 (매칭 밸런싱용: S=5, A=4, B=3, C=2, D=1, E=0)
   int get tierScore {
-    switch (tier) {
+    switch (tier.toUpperCase()) {
+      case 'S':
+        return 5;
       case 'A':
         return 4;
       case 'B':
@@ -26,10 +36,19 @@ class Member {
         return 2;
       case 'D':
         return 1;
+      case 'E':
       case '초심':
       default:
         return 0;
     }
+  }
+
+  // 화면 표시용 이름 (게스트일 경우 앞에 'G ' 표기)
+  String get displayName {
+    if (isGuest && !name.startsWith('G ')) {
+      return 'G $name';
+    }
+    return name;
   }
 
   Member copyWith({
@@ -39,6 +58,10 @@ class Member {
     String? gender,
     bool? isPresent,
     int? matchCountToday,
+    bool? isGuest,
+    bool hasSubmittedShuttle = false,
+    bool? isLesson,
+    String? fixedPartnerId,
   }) {
     return Member(
       id: id ?? this.id,
@@ -47,6 +70,10 @@ class Member {
       gender: gender ?? this.gender,
       isPresent: isPresent ?? this.isPresent,
       matchCountToday: matchCountToday ?? this.matchCountToday,
+      isGuest: isGuest ?? this.isGuest,
+      hasSubmittedShuttle: hasSubmittedShuttle,
+      isLesson: isLesson ?? this.isLesson,
+      fixedPartnerId: fixedPartnerId ?? this.fixedPartnerId,
     );
   }
 
@@ -58,6 +85,10 @@ class Member {
       'gender': gender,
       'isPresent': isPresent,
       'matchCountToday': matchCountToday,
+      'isGuest': isGuest,
+      'hasSubmittedShuttle': hasSubmittedShuttle,
+      'isLesson': isLesson,
+      'fixedPartnerId': fixedPartnerId,
     };
   }
 
@@ -65,10 +96,14 @@ class Member {
     return Member(
       id: map['id'] ?? '',
       name: map['name'] ?? '',
-      tier: map['tier'] ?? '초심',
+      tier: map['tier'] ?? 'E',
       gender: map['gender'] ?? 'M',
       isPresent: map['isPresent'] ?? false,
       matchCountToday: map['matchCountToday'] ?? 0,
+      isGuest: map['isGuest'] ?? false,
+      hasSubmittedShuttle: map['hasSubmittedShuttle'] ?? false,
+      isLesson: map['isLesson'] ?? false,
+      fixedPartnerId: map['fixedPartnerId'],
     );
   }
 }

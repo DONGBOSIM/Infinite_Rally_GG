@@ -19,19 +19,26 @@ class _MembersTabState extends State<MembersTab> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final members = appState.members;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // 필터링 적용
     final filteredMembers = members.where((m) {
-      final matchesSearch = m.name.contains(_searchQuery);
+      final matchesSearch = m.name.contains(_searchQuery) || m.displayName.contains(_searchQuery);
       final matchesTier = _selectedTierFilter == '전체' || m.tier == _selectedTierFilter;
       return matchesSearch && matchesTier;
     }).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('회원 명단 관리 (50여 명)'),
+        title: const Text('회원 관리'),
         elevation: 1,
         actions: [
+          // 테마 전환 버튼 (라이트 <-> 다크)
+          IconButton(
+            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+            tooltip: isDark ? '라이트 모드로 전환' : '다크 모드로 전환',
+            onPressed: () => appState.toggleTheme(),
+          ),
           IconButton(
             icon: const Icon(Icons.person_add),
             tooltip: '회원 추가',
@@ -57,26 +64,41 @@ class _MembersTabState extends State<MembersTab> {
       ),
       body: Column(
         children: [
-          // 상단 요약 바
+          // 상단 요약 바 & 다중 관리자 실시간 싱크 상태 표시
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            color: Colors.blue.shade50,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: isDark ? const Color(0xFF1E293B) : Colors.indigo.shade50,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '전체: ${members.length}명 | 참석: ${appState.presentCount}명',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                Row(
+                  children: [
+                    Text(
+                      '전체: ${members.length}명 | 참석: ${appState.presentCount}명',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    if (appState.isRemoteSyncActive) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade600,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('실시간 연동중', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
                   '불참: ${members.length - appState.presentCount}명',
-                  style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                  style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade700, fontSize: 12),
                 ),
               ],
             ),
           ),
 
-          // 검색 및 급수 필터
+          // 검색 및 6단계 급수(S~E) 필터
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: Row(
@@ -95,9 +117,16 @@ class _MembersTabState extends State<MembersTab> {
                 const SizedBox(width: 8),
                 DropdownButton<String>(
                   value: _selectedTierFilter,
-                  items: ['전체', 'A', 'B', 'C', 'D', '초심']
+                  items: ['전체', 'S', 'A', 'B', 'C', 'D', 'E']
                       .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                       .toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedTierFilter = val);
+                  },
+                )
+              ],
+            ),
+          ),
                   onChanged: (val) {
                     if (val != null) setState(() => _selectedTierFilter = val);
                   },
@@ -163,17 +192,21 @@ class _MembersTabState extends State<MembersTab> {
   }
 
   Color _getTierColor(String tier) {
-    switch (tier) {
+    switch (tier.toUpperCase()) {
+      case 'S':
+        return Colors.purple.shade600;
       case 'A':
-        return Colors.red.shade400;
+        return Colors.red.shade500;
       case 'B':
-        return Colors.orange.shade400;
+        return Colors.orange.shade600;
       case 'C':
-        return Colors.blue.shade400;
+        return Colors.blue.shade600;
       case 'D':
-        return Colors.teal.shade400;
+        return Colors.teal.shade600;
+      case 'E':
+      case '초심':
       default:
-        return Colors.purple.shade300;
+        return Colors.green.shade600;
     }
   }
 
@@ -181,18 +214,19 @@ class _MembersTabState extends State<MembersTab> {
     final nameCtrl = TextEditingController();
     String selectedTier = 'C';
     String selectedGender = 'M';
+    bool isGuest = false;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('신규 회원 등록'),
+          title: const Text('신규 회원 / 게스트 등록'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(labelText: '회원 이름'),
+                decoration: const InputDecoration(labelText: '이름 (게스트는 자동 G 접두사)'),
               ),
               const SizedBox(height: 12),
               Row(
@@ -201,7 +235,7 @@ class _MembersTabState extends State<MembersTab> {
                   const SizedBox(width: 8),
                   DropdownButton<String>(
                     value: selectedTier,
-                    items: ['A', 'B', 'C', 'D', '초심']
+                    items: ['S', 'A', 'B', 'C', 'D', 'E']
                         .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                         .toList(),
                     onChanged: (val) {
@@ -222,20 +256,33 @@ class _MembersTabState extends State<MembersTab> {
                     },
                   ),
                 ],
-              )
+              ),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('게스트(비회원)로 등록', style: TextStyle(fontSize: 14)),
+                value: isGuest,
+                onChanged: (val) {
+                  setDialogState(() => isGuest = val ?? false);
+                },
+              ),
             ],
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
             ElevatedButton(
               onPressed: () {
-                if (nameCtrl.text.trim().isNotEmpty) {
+                final rawName = nameCtrl.text.trim();
+                if (rawName.isNotEmpty) {
+                  final formattedName = isGuest && !rawName.startsWith('G ') ? 'G $rawName' : rawName;
                   final newMember = Member(
                     id: const Uuid().v4().substring(0, 8),
-                    name: nameCtrl.text.trim(),
+                    name: formattedName,
                     tier: selectedTier,
                     gender: selectedGender,
                     isPresent: true,
+                    hasSubmittedShuttle: true,
+                    isGuest: isGuest,
                   );
                   context.read<AppState>().addMember(newMember);
                   Navigator.pop(ctx);
