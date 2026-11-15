@@ -596,6 +596,7 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
   void _showOcrResultDialog(BuildContext context, AppState appState, OcrResult result) {
     final selectedMemberIds = Set<String>.from(result.matchedMembers.map((m) => m.id));
     final selectedGuestNames = Set<String>.from(result.potentialGuestNames);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
