@@ -240,6 +240,53 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // 고정 페어(파트너) 설정: 상호 파트너 연결
+  void setFixedPartner(String memberId1, String memberId2) {
+    if (memberId1 == memberId2) return;
+    final idx1 = _members.indexWhere((m) => m.id == memberId1);
+    final idx2 = _members.indexWhere((m) => m.id == memberId2);
+
+    if (idx1 != -1 && idx2 != -1) {
+      // 기존에 맺어져 있던 파트너가 있다면 해제
+      clearFixedPartner(memberId1);
+      clearFixedPartner(memberId2);
+
+      _members[idx1].fixedPartnerId = memberId2;
+      _members[idx2].fixedPartnerId = memberId1;
+      notifyListeners();
+    }
+  }
+
+  // 고정 페어(파트너) 해제
+  void clearFixedPartner(String memberId) {
+    final idx = _members.indexWhere((m) => m.id == memberId);
+    if (idx != -1) {
+      final oldPartnerId = _members[idx].fixedPartnerId;
+      _members[idx].fixedPartnerId = null;
+
+      if (oldPartnerId != null && oldPartnerId.isNotEmpty) {
+        final pIdx = _members.indexWhere((m) => m.id == oldPartnerId);
+        if (pIdx != -1) {
+          _members[pIdx].fixedPartnerId = null;
+        }
+      }
+      notifyListeners();
+    }
+  }
+
+  // 특정 회원의 고정 파트너 Member 객체 반환
+  Member? getFixedPartner(String memberId) {
+    final idx = _members.indexWhere((m) => m.id == memberId);
+    if (idx != -1) {
+      final partnerId = _members[idx].fixedPartnerId;
+      if (partnerId != null && partnerId.isNotEmpty) {
+        final pIdx = _members.indexWhere((m) => m.id == partnerId);
+        if (pIdx != -1) return _members[pIdx];
+      }
+    }
+    return null;
+  }
+
   // OCR 투표 캡처 결과 일괄 적용 (기존 회원 출석 처리 + 게스트 일괄 등록)
   void applyOcrBatch({
     required List<String> memberIds,

@@ -89,6 +89,30 @@ void main() {
       expect(court4.lessonStudents.any((s) => s.name == '레슨자2'), true);
     });
 
+    test('고정 페어로 묶인 두 선수는 매칭 시 항상 같은 팀으로 배정된다 (고정 페어 보장)', () {
+      final members = [
+        // 1번과 2번이 상호 고정 페어
+        Member(id: '1', name: '페어1', tier: 'A', gender: 'M', isPresent: true, hasSubmittedShuttle: true, fixedPartnerId: '2'),
+        Member(id: '2', name: '페어2', tier: 'D', gender: 'F', isPresent: true, hasSubmittedShuttle: true, fixedPartnerId: '1'),
+        Member(id: '3', name: '상대1', tier: 'B', gender: 'M', isPresent: true, hasSubmittedShuttle: true),
+        Member(id: '4', name: '상대2', tier: 'C', gender: 'M', isPresent: true, hasSubmittedShuttle: true),
+      ];
+
+      final result = MatchingService.generateBalancedMatches(
+        members: members,
+        courtCount: 1,
+      );
+
+      expect(result.currentGames.length, 1);
+      final game = result.currentGames.first;
+      expect(game.isFixedPair, true);
+
+      // 페어1과 페어2가 한 팀(Team A 또는 Team B)에 함께 있어야 함
+      final isBothInTeamA = game.teamA.any((m) => m.id == '1') && game.teamA.any((m) => m.id == '2');
+      final isBothInTeamB = game.teamB.any((m) => m.id == '1') && game.teamB.any((m) => m.id == '2');
+      expect(isBothInTeamA || isBothInTeamB, true);
+    });
+
     test('출전 횟수가 적은 회원이 우선적으로 코트에 배정된다 (공평성 보장)', () {
       final members = [
         // 이미 2경기 치른 회원들

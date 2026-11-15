@@ -3,9 +3,12 @@ import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../models/game_match.dart';
 import '../models/member.dart';
+import '../services/tts_service.dart';
 
 class MatchTab extends StatelessWidget {
   const MatchTab({super.key});
+
+  static final TtsService _ttsService = TtsService();
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +39,23 @@ class MatchTab extends StatelessWidget {
         ),
         elevation: 1,
         actions: [
+          // 전체 코트 순차 음성 호명 버튼
+          IconButton(
+            icon: const Icon(Icons.volume_up),
+            tooltip: '전체 코트 순차 호명 📢',
+            onPressed: () {
+              if (currentGames.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('현재 진행 중인 경기가 없습니다.')),
+                );
+                return;
+              }
+              _ttsService.speakAllCourts(currentGames);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('전체 코트를 순서대로 호명합니다 📢')),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(
               appState.themeMode == ThemeMode.system
@@ -370,28 +390,66 @@ class MatchTab extends StatelessWidget {
                       '시작: ${game.startTime}',
                       style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                     ),
+                    if (game.isFixedPair) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF581C87) : Colors.purple.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: isDark ? Colors.purple.shade700 : Colors.purple.shade300),
+                        ),
+                        child: Text(
+                          '고정페어',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.purple.shade200 : Colors.purple.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-                if (!isFinished)
-                  TextButton.icon(
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.green.shade700,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    icon: const Icon(Icons.check_circle_outline, size: 18),
-                    label: const Text('경기 종료'),
-                    onPressed: () {
-                      appState.finishGame(game.courtNumber);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('제 ${game.courtNumber} 코트 경기가 종료되어 경기 횟수가 반영되었습니다.')),
-                      );
-                    },
-                  )
-                else
-                  const Chip(
-                    label: Text('종료됨', style: TextStyle(fontSize: 11)),
-                    visualDensity: VisualDensity.compact,
-                  ),
+                Row(
+                  children: [
+                    if (!isFinished) ...[
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          foregroundColor: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
+                          side: BorderSide(color: isDark ? Colors.amber.shade700 : Colors.amber.shade400),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                        icon: const Icon(Icons.volume_up, size: 14),
+                        label: const Text('호명 📢', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        onPressed: () => _ttsService.speakCourt(game),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    if (!isFinished)
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.green.shade700,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.check_circle_outline, size: 18),
+                        label: const Text('경기 종료'),
+                        onPressed: () {
+                          appState.finishGame(game.courtNumber);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('제 ${game.courtNumber} 코트 경기가 종료되어 경기 횟수가 반영되었습니다.')),
+                          );
+                        },
+                      )
+                    else
+                      const Chip(
+                        label: Text('종료됨', style: TextStyle(fontSize: 11)),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                  ],
+                ),
               ],
             ),
             const Divider(height: 16),
@@ -549,26 +607,45 @@ class MatchTab extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (!isFinished)
-                  TextButton.icon(
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.green.shade700,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    icon: const Icon(Icons.check_circle_outline, size: 18),
-                    label: const Text('레슨 완료'),
-                    onPressed: () {
-                      appState.finishGame(game.courtNumber);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('제 ${game.courtNumber} 코트 레슨이 완료 처리되었습니다.')),
-                      );
-                    },
-                  )
-                else
-                  const Chip(
-                    label: Text('레슨 완료됨', style: TextStyle(fontSize: 11)),
-                    visualDensity: VisualDensity.compact,
-                  ),
+                Row(
+                  children: [
+                    if (!isFinished) ...[
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          foregroundColor: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
+                          side: BorderSide(color: isDark ? Colors.amber.shade700 : Colors.amber.shade400),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                        icon: const Icon(Icons.volume_up, size: 14),
+                        label: const Text('호명 📢', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        onPressed: () => _ttsService.speakCourt(game),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    if (!isFinished)
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.green.shade700,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.check_circle_outline, size: 18),
+                        label: const Text('레슨 완료'),
+                        onPressed: () {
+                          appState.finishGame(game.courtNumber);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('제 ${game.courtNumber} 코트 레슨이 완료 처리되었습니다.')),
+                          );
+                        },
+                      )
+                    else
+                      const Chip(
+                        label: Text('레슨 완료됨', style: TextStyle(fontSize: 11)),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                  ],
+                ),
               ],
             ),
             const Divider(height: 16),

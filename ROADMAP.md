@@ -108,11 +108,11 @@
 - [x] `admin_app`: 오늘 참여자 콕 제출(출석) 체크박스 및 레슨 신청 토글 UI 구현
 
 ### 📌 Phase 3: 매칭 알고리즘 고도화 & 음성 호명
-- [ ] `admin_app/lib/services/matching_service.dart`: S~E 급수 기반 밸런스 로직 개선
-- [ ] `matching_service.dart`: 고정 페어(파트너) 보장 매칭 로직 추가
-- [ ] `matching_service.dart`: 콕 미제출자 및 다음 레슨 예정자 매칭 제외 로직 구현
-- [ ] `admin_app/lib/screens/match_tab.dart`: 4코트 레슨 모드 ↔ 게임 모드 스위치 UI 구현
-- [ ] `admin_app`: `flutter_tts` 패키지 연동 및 각 코트별 [호명] 음성 재생 버튼 구현
+- [x] `admin_app/lib/services/matching_service.dart`: S~E 급수 기반 밸런스 로직 개선
+- [x] `matching_service.dart`: 고정 페어(파트너) 보장 매칭 로직 추가
+- [x] `matching_service.dart`: 콕 미제출자 및 다음 레슨 예정자 매칭 제외 로직 구현
+- [x] `admin_app/lib/screens/match_tab.dart`: 4코트 레슨 모드 ↔ 게임 모드 스위치 UI 구현
+- [x] `admin_app`: `flutter_tts` 패키지 연동 및 각 코트별 [호명] 음성 재생 버튼 구현
 
 ### 📌 Phase 4: 웹 전광판 리뉴얼 & 실시간 연동
 - [ ] `web_viewer/index.html`: 아기자기하고 귀여운 파스텔톤 셔틀콕 테마 CSS 디자인 적용

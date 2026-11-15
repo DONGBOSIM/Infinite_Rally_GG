@@ -265,7 +265,57 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                           ),
                         ],
                       ),
-                      subtitle: Text('오늘 출전: ${member.matchCountToday}게임', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('오늘 출전: ${member.matchCountToday}게임', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          const SizedBox(height: 3),
+                          Builder(builder: (context) {
+                            final fixedPartner = appState.getFixedPartner(member.id);
+                            if (fixedPartner != null) {
+                              return InkWell(
+                                onTap: () => _showFixedPartnerDialog(context, appState, member),
+                                borderRadius: BorderRadius.circular(4),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF1E3A5F) : Colors.blue.shade50,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: isDark ? Colors.blue.shade700 : Colors.blue.shade300),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.link, size: 12, color: isDark ? Colors.blue.shade300 : Colors.blue.shade700),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        '고정페어: ${fixedPartner.name}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.blue.shade200 : Colors.blue.shade800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            } else {
+                              return InkWell(
+                                onTap: () => _showFixedPartnerDialog(context, appState, member),
+                                child: Text(
+                                  '+ 고정 파트너 지정',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark ? Colors.blue.shade300 : Colors.indigo.shade600,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              );
+                            }
+                          }),
+                        ],
+                      ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -863,6 +913,142 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // 고정 페어(파트너) 지정 및 해제 다이얼로그
+  void _showFixedPartnerDialog(BuildContext context, AppState appState, Member member) {
+    final currentPartner = appState.getFixedPartner(member.id);
+    final candidates = appState.todayAttendees.where((m) => m.id != member.id).toList();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.link, color: Colors.indigo),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '${member.name}님의 고정 페어',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (currentPartner != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 12,
+                            backgroundColor: _getTierColor(currentPartner.tier),
+                            child: Text(currentPartner.tier, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '현재 페어: ${currentPartner.name}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: () {
+                          appState.clearFixedPartner(member.id);
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('${member.name}님의 고정 페어가 해제되었습니다.')),
+                          );
+                        },
+                        child: const Text('해제'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text('파트너 변경:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              ] else ...[
+                const Text(
+                  '고정 파트너로 묶을 선수를 선택하세요.\n(게임 매칭 시 항상 같은 팀으로 자동 편성됩니다)',
+                  style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+                ),
+              ],
+              const SizedBox(height: 8),
+              if (candidates.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: Text('선택 가능한 다른 참여자가 없습니다.')),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: candidates.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final candidate = candidates[index];
+                      final isCurrent = currentPartner?.id == candidate.id;
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          radius: 14,
+                          backgroundColor: _getTierColor(candidate.tier),
+                          child: Text(candidate.tier, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ),
+                        title: Text(candidate.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        subtitle: candidate.fixedPartnerId != null && !isCurrent
+                            ? Text('다른 회원과 페어 중', style: TextStyle(fontSize: 10, color: Colors.orange.shade700))
+                            : null,
+                        trailing: isCurrent
+                            ? const Chip(label: Text('현재 페어', style: TextStyle(fontSize: 10)), visualDensity: VisualDensity.compact)
+                            : ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.indigo,
+                                  foregroundColor: Colors.white,
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                                ),
+                                onPressed: () {
+                                  appState.setFixedPartner(member.id, candidate.id);
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('${member.name}님과 ${candidate.name}님이 고정 페어로 지정되었습니다!')),
+                                  );
+                                },
+                                child: const Text('선택'),
+                              ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('닫기')),
+        ],
       ),
     );
   }
