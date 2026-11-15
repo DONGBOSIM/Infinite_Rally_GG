@@ -115,10 +115,10 @@
 - [x] `admin_app`: `flutter_tts` 패키지 연동 및 각 코트별 [호명] 음성 재생 버튼 구현
 
 ### 📌 Phase 4: 웹 전광판 리뉴얼 & 실시간 연동
-- [ ] `web_viewer/index.html`: 아기자기하고 귀여운 파스텔톤 셔틀콕 테마 CSS 디자인 적용
-- [ ] `web_viewer/index.html`: 라이트 모드 / 다크 모드 토글 기능 추가
-- [ ] `web_viewer/index.html`: 4코트 레슨 모드 / 게임 모드 실시간 분기 렌더링
-- [ ] `web_viewer/index.html`: 내 이름 검색 및 코트 하이라이트 기능 추가
+- [x] `web_viewer/index.html`: 아기자기하고 귀여운 파스텔톤 셔틀콕 테마 CSS 디자인 적용
+- [x] `web_viewer/index.html`: 라이트 모드 / 다크 모드 토글 기능 추가
+- [x] `web_viewer/index.html`: 4코트 레슨 모드 / 게임 모드 실시간 분기 렌더링
+- [x] `web_viewer/index.html`: 내 이름 검색 및 코트 하이라이트 기능 추가
 
 ---
 

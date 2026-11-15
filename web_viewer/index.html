@@ -1,149 +1,330 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>무한랠리 실시간 매칭표</title>
+  <title>🏸 무한랠리 실시간 매칭 전광판</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
+    /* =========================================================
+       1. 디자인 시스템 & 파스텔 셔틀콕 테마 (CSS Variables)
+       ========================================================= */
     :root {
-      --bg-color: #0f172a;
-      --card-bg: #1e293b;
-      --card-border: #334155;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --accent-green: #10b981;
-      --accent-blue: #38bdf8;
-      --team-a: #60a5fa;
-      --team-b: #f472b6;
-      --tier-badge: #e2e8f0;
+      /* [라이트 모드] 산뜻하고 포근한 파스텔 셔틀콕 테마 */
+      --bg-base: #f4f7fb;
+      --bg-gradient: radial-gradient(circle at 10% 10%, #ecfdf5 0%, #f4f7fb 45%, #eff6ff 100%);
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
+      --card-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+      --card-shadow-hover: 0 8px 24px rgba(15, 23, 42, 0.09);
+      
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --text-sub: #94a3b8;
+      
+      /* 브랜드 & 악센트 컬러 */
+      --brand-mint: #059669;
+      --brand-mint-light: #ecfdf5;
+      --brand-mint-border: #a7f3d0;
+      --accent-coral: #f43f5e;
+      --accent-amber: #d97706;
+      --accent-purple: #7e22ce;
+      
+      /* 코트 및 팀 파스텔 컬러 */
+      --team-a-bg: #f0f9ff;
+      --team-a-border: #bae6fd;
+      --team-a-text: #0284c7;
+      --team-a-chip: #e0f2fe;
+      
+      --team-b-bg: #fff1f2;
+      --team-b-border: #fecdd3;
+      --team-b-text: #e11d48;
+      --team-b-chip: #ffe4e6;
+
+      --lesson-card-bg: #faf5ff;
+      --lesson-card-border: #e9d5ff;
+      --lesson-header-bg: #f3e8ff;
+      --lesson-accent: #8b5cf6;
+      --lesson-text: #6b21a8;
+      --lesson-queue-bg: #fffbeb;
+      --lesson-queue-border: #fde68a;
+
+      /* 티어별 귀여운 파스텔 뱃지 */
+      --tier-s-bg: #fdf2f8; --tier-s-color: #db2777; --tier-s-border: #fbcfe8;
+      --tier-a-bg: #fffbeb; --tier-a-color: #d97706; --tier-a-border: #fde68a;
+      --tier-b-bg: #ecfdf5; --tier-b-color: #059669; --tier-b-border: #a7f3d0;
+      --tier-c-bg: #f0f9ff; --tier-c-color: #0284c7; --tier-c-border: #bae6fd;
+      --tier-d-bg: #f5f3ff; --tier-d-color: #7c3aed; --tier-d-border: #ddd6fe;
+      --tier-e-bg: #f1f5f9; --tier-e-color: #475569; --tier-e-border: #cbd5e1;
+
+      --highlight-ring: #10b981;
+      --highlight-glow: rgba(16, 185, 129, 0.25);
     }
 
+    [data-theme="dark"] {
+      /* [다크 모드] 야간 체육관 및 TV에 최적화된 아늑한 네온 파스텔 */
+      --bg-base: #0b1120;
+      --bg-gradient: radial-gradient(circle at 10% 10%, #111c33 0%, #0b1120 50%, #0d1627 100%);
+      --card-bg: #151f33;
+      --card-border: #22324f;
+      --card-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+      --card-shadow-hover: 0 8px 26px rgba(0, 0, 0, 0.45);
+
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-sub: #64748b;
+
+      --brand-mint: #34d399;
+      --brand-mint-light: rgba(16, 185, 129, 0.15);
+      --brand-mint-border: rgba(52, 211, 153, 0.35);
+      --accent-coral: #fb7185;
+      --accent-amber: #fbbf24;
+      --accent-purple: #c084fc;
+
+      --team-a-bg: rgba(2, 132, 199, 0.12);
+      --team-a-border: rgba(56, 189, 248, 0.3);
+      --team-a-text: #38bdf8;
+      --team-a-chip: rgba(56, 189, 248, 0.15);
+
+      --team-b-bg: rgba(225, 29, 72, 0.12);
+      --team-b-border: rgba(251, 113, 133, 0.3);
+      --team-b-text: #fb7185;
+      --team-b-chip: rgba(251, 113, 133, 0.15);
+
+      --lesson-card-bg: #181930;
+      --lesson-card-border: #3b285b;
+      --lesson-header-bg: rgba(168, 85, 247, 0.15);
+      --lesson-accent: #c084fc;
+      --lesson-text: #e9d5ff;
+      --lesson-queue-bg: rgba(245, 158, 11, 0.1);
+      --lesson-queue-border: rgba(245, 158, 11, 0.3);
+
+      --tier-s-bg: rgba(236, 72, 153, 0.15); --tier-s-color: #f472b6; --tier-s-border: rgba(244, 114, 182, 0.3);
+      --tier-a-bg: rgba(245, 158, 11, 0.15); --tier-a-color: #fbbf24; --tier-a-border: rgba(251, 191, 36, 0.3);
+      --tier-b-bg: rgba(16, 185, 129, 0.15); --tier-b-color: #34d399; --tier-b-border: rgba(52, 211, 153, 0.3);
+      --tier-c-bg: rgba(14, 165, 233, 0.15); --tier-c-color: #38bdf8; --tier-c-border: rgba(56, 189, 248, 0.3);
+      --tier-d-bg: rgba(139, 92, 246, 0.15); --tier-d-color: #a78bfa; --tier-d-border: rgba(167, 139, 250, 0.3);
+      --tier-e-bg: rgba(148, 163, 184, 0.15); --tier-e-color: #cbd5e1; --tier-e-border: rgba(203, 213, 225, 0.3);
+
+      --highlight-ring: #34d399;
+      --highlight-glow: rgba(52, 211, 153, 0.45);
+    }
+
+    /* =========================================================
+       2. 기본 스타일 & 반응형 레이아웃
+       ========================================================= */
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
       font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
       -webkit-tap-highlight-color: transparent;
+      transition: background-color 0.25s ease, border-color 0.25s ease, color 0.2s ease;
     }
 
     body {
-      background-color: var(--bg-color);
+      background-color: var(--bg-base);
+      background-image: var(--bg-gradient);
+      background-attachment: fixed;
       color: var(--text-main);
-      padding: 16px;
-      padding-bottom: 40px;
+      padding: 16px 14px 48px;
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
-    /* 상단 헤더 */
+    .container {
+      width: 100%;
+      max-width: 960px;
+    }
+
+    /* =========================================================
+       3. 귀여운 셔틀콕 헤더
+       ========================================================= */
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--card-border);
+      padding: 6px 4px 16px;
+      border-bottom: 1.5px solid var(--card-border);
       margin-bottom: 16px;
     }
 
-    .title-group h1 {
-      font-size: 1.25rem;
-      font-weight: 800;
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .shuttlecock-icon {
+      font-size: 1.8rem;
+      display: inline-block;
+      animation: shuttleWiggle 3s infinite ease-in-out;
+      transform-origin: bottom center;
+    }
+
+    @keyframes shuttleWiggle {
+      0%, 100% { transform: rotate(0deg) scale(1); }
+      15% { transform: rotate(-10deg) scale(1.08); }
+      30% { transform: rotate(8deg) scale(1.04); }
+      45% { transform: rotate(-5deg) scale(1); }
+      60% { transform: rotate(0deg) scale(1); }
+    }
+
+    .brand-title h1 {
+      font-size: 1.32rem;
+      font-weight: 900;
       letter-spacing: -0.5px;
-      color: #ffffff;
+      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 6px;
     }
 
-    .title-group p {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      margin-top: 2px;
+    .brand-title h1 span.badge-cute {
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      background: var(--brand-mint-light);
+      color: var(--brand-mint);
+      border: 1px solid var(--brand-mint-border);
+      letter-spacing: normal;
     }
 
-    .header-actions {
+    .brand-title p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+      font-weight: 500;
+    }
+
+    .header-controls {
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    /* 헤더 QR 공유 버튼 */
+    /* 테마 전환 버튼 */
+    .btn-theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 12px;
+      border-radius: 9999px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+      user-select: none;
+    }
+
+    .btn-theme-toggle:active {
+      transform: scale(0.95);
+    }
+
+    /* QR 공유 버튼 */
     .btn-qr-share {
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      padding: 6px 11px;
+      padding: 7px 12px;
       border-radius: 9999px;
-      background: rgba(255, 255, 255, 0.08);
+      background: var(--card-bg);
       border: 1px solid var(--card-border);
-      color: #f1f5f9;
-      font-size: 0.75rem;
+      color: var(--text-main);
+      font-size: 0.78rem;
       font-weight: 700;
       cursor: pointer;
-      transition: all 0.15s ease;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
     }
 
     .btn-qr-share:active {
-      transform: scale(0.96);
-      background: rgba(255, 255, 255, 0.16);
+      transform: scale(0.95);
     }
 
-    /* 실시간 상태 배지 */
+    /* 실시간 라이브 뱃지 */
     .live-badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 10px;
+      padding: 6px 11px;
       border-radius: 9999px;
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3);
+      background: var(--brand-mint-light);
+      border: 1px solid var(--brand-mint-border);
       font-size: 0.75rem;
-      font-weight: 700;
-      color: var(--accent-green);
+      font-weight: 800;
+      color: var(--brand-mint);
     }
 
     .live-dot {
       width: 7px;
       height: 7px;
-      background-color: var(--accent-green);
+      background-color: var(--brand-mint);
       border-radius: 50%;
-      box-shadow: 0 0 8px var(--accent-green);
+      box-shadow: 0 0 8px var(--brand-mint);
       animation: pulse 1.6s infinite ease-in-out;
     }
 
     @keyframes pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.85); }
+      50% { opacity: 0.35; transform: scale(0.85); }
     }
 
-    /* 내 이름 검색바 */
-    .search-card {
+    /* =========================================================
+       4. 공지사항 배너 (Notice Banner)
+       ========================================================= */
+    .notice-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
+      border-left: 4px solid var(--brand-mint);
       border-radius: 12px;
-      padding: 10px 12px;
+      padding: 10px 14px;
       margin-bottom: 14px;
+      font-size: 0.84rem;
+      line-height: 1.45;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--card-shadow);
+    }
+
+    /* =========================================================
+       5. 내 이름 검색 & 실시간 하이라이트 배너
+       ========================================================= */
+    .search-card {
+      background: var(--card-bg);
+      border: 1.5px solid var(--card-border);
+      border-radius: 16px;
+      padding: 10px 14px;
+      margin-bottom: 20px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
+      box-shadow: var(--card-shadow);
     }
 
     .search-input-wrap {
       display: flex;
       align-items: center;
-      gap: 8px;
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 8px;
-      padding: 8px 12px;
-      transition: all 0.2s ease;
+      gap: 10px;
+      background: var(--bg-base);
+      border: 1.5px solid var(--card-border);
+      border-radius: 12px;
+      padding: 9px 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
 
     .search-input-wrap:focus-within {
-      border-color: var(--accent-green);
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.25);
+      border-color: var(--brand-mint);
+      box-shadow: 0 0 12px var(--highlight-glow);
     }
 
     .search-input {
@@ -151,101 +332,467 @@
       background: transparent;
       border: none;
       outline: none;
-      color: #ffffff;
-      font-size: 0.88rem;
-      font-weight: 600;
+      color: var(--text-main);
+      font-size: 0.92rem;
+      font-weight: 700;
     }
 
     .search-input::placeholder {
-      color: var(--text-muted);
-      font-weight: 400;
-      font-size: 0.82rem;
+      color: var(--text-sub);
+      font-weight: 500;
+      font-size: 0.85rem;
     }
 
     .search-clear-btn {
       background: none;
       border: none;
-      color: var(--text-muted);
-      font-size: 0.95rem;
+      color: var(--text-sub);
+      font-size: 1rem;
       cursor: pointer;
-      padding: 0 4px;
+      padding: 2px 6px;
       display: none;
       line-height: 1;
+      border-radius: 50%;
     }
 
     .search-clear-btn:hover {
-      color: #ffffff;
+      color: var(--text-main);
     }
 
+    /* 내 경기 / 레슨 상태 실시간 안내 배너 */
     .my-status-banner {
       display: none;
-      font-size: 0.82rem;
+      font-size: 0.86rem;
       font-weight: 700;
-      color: var(--accent-green);
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      padding: 8px 12px;
-      border-radius: 8px;
-      line-height: 1.4;
-      animation: fadeIn 0.25s ease;
+      padding: 10px 14px;
+      border-radius: 10px;
+      line-height: 1.45;
+      animation: fadeIn 0.25s ease-out;
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-4px); }
+      from { opacity: 0; transform: translateY(-5px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* 내 경기 & 플레이어 하이라이트 스타일 */
+    /* 내 코트 & 플레이어 하이라이트 효과 */
     .court-card.my-court {
-      border: 2px solid var(--accent-green) !important;
-      box-shadow: 0 0 18px rgba(16, 185, 129, 0.4) !important;
+      border: 2.5px solid var(--highlight-ring) !important;
+      box-shadow: 0 8px 30px var(--highlight-glow) !important;
       transform: translateY(-2px);
     }
 
-    .my-court-badge {
+    .my-badge-pill {
       display: inline-flex;
       align-items: center;
-      background: var(--accent-green);
-      color: #0f172a;
+      gap: 3px;
       font-weight: 800;
-      font-size: 0.68rem;
-      padding: 2px 6px;
-      border-radius: 4px;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      color: #ffffff;
       margin-left: 6px;
-      letter-spacing: -0.3px;
+      letter-spacing: -0.2px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
 
     .player-chip.my-chip {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(56, 189, 248, 0.35)) !important;
-      border: 1.5px solid var(--accent-green) !important;
-      color: #ffffff !important;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(56, 189, 248, 0.22)) !important;
+      border: 2px solid var(--highlight-ring) !important;
       font-weight: 800 !important;
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+      box-shadow: 0 0 10px var(--highlight-glow);
     }
 
     .upcoming-card.my-upcoming {
-      border: 2px solid var(--accent-green) !important;
-      background: rgba(16, 185, 129, 0.12) !important;
-      box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
+      border: 2px solid var(--highlight-ring) !important;
+      background: var(--brand-mint-light) !important;
+      box-shadow: 0 4px 16px var(--highlight-glow);
     }
 
     .highlight-name {
-      color: #34d399 !important;
-      font-weight: 800 !important;
+      color: var(--brand-mint) !important;
+      font-weight: 900 !important;
       text-decoration: underline;
     }
 
-    /* QR 코드 공유 모달 */
+    /* =========================================================
+       6. 코트 섹션 & 4코트 반응형 그리드
+       ========================================================= */
+    .section-title {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .court-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    @media (min-width: 680px) {
+      .court-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* 일반 경기 코트 카드 (1~3코트 또는 4코트 게임모드) */
+    .court-card {
+      background: var(--card-bg);
+      border: 1.5px solid var(--card-border);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .court-card:hover {
+      box-shadow: var(--card-shadow-hover);
+    }
+
+    .court-header {
+      padding: 11px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-base);
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .court-name-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .court-title {
+      font-size: 0.96rem;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .court-status-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--brand-mint-light);
+      color: var(--brand-mint);
+      border: 1px solid var(--brand-mint-border);
+    }
+
+    .fixed-pair-tag {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: #fdf2f8;
+      color: #db2777;
+      border: 1px solid #fbcfe8;
+    }
+
+    .court-body {
+      padding: 14px 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .match-row {
+      display: flex;
+      align-items: stretch;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .team-box {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: var(--team-a-bg);
+      border: 1px solid var(--team-a-border);
+      border-radius: 12px;
+      padding: 8px 10px;
+    }
+
+    .team-box.team-b {
+      background: var(--team-b-bg);
+      border-color: var(--team-b-border);
+    }
+
+    .team-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+
+    .team-label {
+      font-size: 0.73rem;
+      font-weight: 800;
+      letter-spacing: -0.2px;
+    }
+
+    .team-a .team-label { color: var(--team-a-text); }
+    .team-b .team-label { color: var(--team-b-text); }
+
+    .player-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .player-chip {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 6px 9px;
+      border-radius: 8px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .guest-tag {
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: #fef3c7;
+      color: #b45309;
+      margin-right: 2px;
+    }
+
+    /* 티어 뱃지 */
+    .tier-badge {
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 6px;
+      display: inline-block;
+      min-width: 20px;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .tier-S { background: var(--tier-s-bg); color: var(--tier-s-color); border: 1px solid var(--tier-s-border); }
+    .tier-A { background: var(--tier-a-bg); color: var(--tier-a-color); border: 1px solid var(--tier-a-border); }
+    .tier-B { background: var(--tier-b-bg); color: var(--tier-b-color); border: 1px solid var(--tier-b-border); }
+    .tier-C { background: var(--tier-c-bg); color: var(--tier-c-color); border: 1px solid var(--tier-c-border); }
+    .tier-D { background: var(--tier-d-bg); color: var(--tier-d-color); border: 1px solid var(--tier-d-border); }
+    .tier-E { background: var(--tier-e-bg); color: var(--tier-e-color); border: 1px solid var(--tier-e-border); }
+
+    .vs-divider {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.76rem;
+      font-weight: 900;
+      color: var(--text-sub);
+      user-select: none;
+      padding: 0 2px;
+    }
+
+    .vs-divider span {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 9999px;
+      padding: 4px 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    /* =========================================================
+       7. 레슨 전용 코트 카드 (제 4코트 레슨 모드)
+       ========================================================= */
+    .lesson-court-card {
+      background: var(--lesson-card-bg);
+      border: 1.5px solid var(--lesson-card-border);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .lesson-court-card .court-header {
+      background: var(--lesson-header-bg);
+      border-bottom: 1px solid var(--lesson-card-border);
+    }
+
+    .lesson-title {
+      font-size: 0.96rem;
+      font-weight: 800;
+      color: var(--lesson-text);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .coach-badge {
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--card-bg);
+      color: var(--lesson-accent);
+      border: 1px solid var(--lesson-card-border);
+    }
+
+    .lesson-students-section {
+      margin-bottom: 12px;
+    }
+
+    .lesson-subhead {
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: var(--lesson-accent);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .lesson-students-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 6px;
+    }
+
+    .lesson-queue-section {
+      background: var(--lesson-queue-bg);
+      border: 1px dashed var(--lesson-queue-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+
+    .lesson-queue-title {
+      font-size: 0.74rem;
+      font-weight: 800;
+      color: var(--accent-amber);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .lesson-queue-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .lesson-queue-chip {
+      font-size: 0.74rem;
+      font-weight: 700;
+      background: var(--card-bg);
+      border: 1px solid var(--lesson-queue-border);
+      padding: 3px 8px;
+      border-radius: 6px;
+      color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* =========================================================
+       8. 다음 대기 경기 리스트
+       ========================================================= */
+    .upcoming-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .upcoming-card {
+      background: var(--card-bg);
+      border: 1px dashed var(--card-border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.86rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+
+    .upcoming-order-pill {
+      font-weight: 800;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: var(--team-a-chip);
+      color: var(--team-a-text);
+      border: 1px solid var(--team-a-border);
+      margin-right: 10px;
+      white-space: nowrap;
+    }
+
+    .upcoming-teams {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .upcoming-team-names {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .upcoming-court-hint {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--brand-mint);
+      background: var(--brand-mint-light);
+      padding: 3px 7px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    /* =========================================================
+       9. 푸터 & 하단 안내
+       ========================================================= */
+    .footer-info {
+      text-align: center;
+      padding: 20px 10px 10px;
+      font-size: 0.78rem;
+      color: var(--text-sub);
+      line-height: 1.6;
+    }
+
+    .footer-quote {
+      font-weight: 700;
+      color: var(--brand-mint);
+      margin-bottom: 4px;
+    }
+
+    /* =========================================================
+       10. QR 모달 스타일
+       ========================================================= */
     .modal-overlay {
       display: none;
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(4px);
-      z-index: 999;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
       align-items: center;
       justify-content: center;
       padding: 20px;
@@ -258,17 +805,17 @@
     .modal-content {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 20px;
+      border-radius: 20px;
+      padding: 22px 20px;
       max-width: 320px;
       width: 100%;
       text-align: center;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
-      animation: modalScale 0.2s ease-out;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+      animation: modalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    @keyframes modalScale {
-      from { transform: scale(0.92); opacity: 0; }
+    @keyframes modalPop {
+      from { transform: scale(0.9); opacity: 0; }
       to { transform: scale(1); opacity: 1; }
     }
 
@@ -280,26 +827,26 @@
     }
 
     .modal-header h3 {
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       font-weight: 800;
-      color: #ffffff;
+      color: var(--text-main);
     }
 
     .modal-close-btn {
       background: none;
       border: none;
       color: var(--text-muted);
-      font-size: 1.3rem;
+      font-size: 1.4rem;
       cursor: pointer;
       line-height: 1;
-      padding: 2px 6px;
+      padding: 0 4px;
     }
 
     .modal-desc {
       font-size: 0.8rem;
       color: var(--text-muted);
       margin-bottom: 14px;
-      line-height: 1.35;
+      line-height: 1.4;
     }
 
     #qrcodeWrapper {
@@ -308,11 +855,10 @@
       align-items: center;
       background: #ffffff;
       padding: 14px;
-      border-radius: 12px;
+      border-radius: 14px;
       width: fit-content;
       margin: 0 auto 16px;
-      min-height: 188px;
-      min-width: 188px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
 
     #qrcode img, #qrcode canvas {
@@ -328,287 +874,121 @@
     .btn-modal-action {
       flex: 1;
       padding: 10px;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 0.85rem;
-      font-weight: 700;
+      font-weight: 800;
       cursor: pointer;
       border: none;
-      transition: all 0.15s ease;
     }
 
     .btn-copy-link {
-      background: #334155;
-      color: #ffffff;
-    }
-
-    .btn-copy-link:active {
-      background: #475569;
-    }
-
-    .btn-share-native {
-      background: var(--accent-green);
-      color: #0f172a;
-    }
-
-    /* 공지사항 배너 */
-    .notice-card {
-      background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(99, 102, 241, 0.1));
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      border-radius: 12px;
-      padding: 12px 14px;
-      margin-bottom: 20px;
-      font-size: 0.85rem;
-      line-height: 1.4;
-      color: #e0f2fe;
-    }
-
-    /* 섹션 제목 */
-    .section-title {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .section-title span {
+      background: var(--bg-base);
+      border: 1px solid var(--card-border);
       color: var(--text-main);
     }
 
-    /* 코트 그리드 */
-    .court-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      margin-bottom: 24px;
-    }
-
-    .court-card {
-      background-color: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-      transition: transform 0.2s ease;
-    }
-
-    .court-header {
-      background-color: rgba(255, 255, 255, 0.04);
-      padding: 10px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .court-name {
-      font-weight: 700;
-      font-size: 0.9rem;
-      color: var(--accent-blue);
-    }
-
-    .game-status-tag {
-      font-size: 0.72rem;
-      font-weight: 600;
-      padding: 3px 8px;
-      border-radius: 6px;
-      background: rgba(16, 185, 129, 0.2);
-      color: var(--accent-green);
-    }
-
-    .court-body {
-      padding: 14px 16px;
-    }
-
-    .match-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .team-box {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .team-label {
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-
-    .team-a .team-label { color: var(--team-a); }
-    .team-b .team-label { color: var(--team-b); text-align: right; }
-
-    .player-list {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .player-chip {
-      background: rgba(255, 255, 255, 0.05);
-      padding: 6px 10px;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .team-b .player-chip {
-      flex-direction: row-reverse;
-    }
-
-    .tier-badge {
-      font-size: 0.68rem;
-      font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.15);
-      color: #cbd5e1;
-    }
-
-    .vs-separator {
-      font-size: 0.8rem;
-      font-weight: 800;
-      color: var(--text-muted);
-      padding: 0 4px;
-    }
-
-    /* 다음 대기 경기 리스트 */
-    .upcoming-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .upcoming-card {
-      background: rgba(30, 41, 59, 0.6);
-      border: 1px dashed var(--card-border);
-      border-radius: 12px;
-      padding: 12px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 0.82rem;
-    }
-
-    .upcoming-order {
-      font-weight: 800;
-      color: var(--accent-blue);
-      margin-right: 10px;
-    }
-
-    .upcoming-teams {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .upcoming-team-text {
-      color: #cbd5e1;
-      font-weight: 500;
-    }
-
-    /* 하단 안내 */
-    .footer-info {
-      text-align: center;
-      margin-top: 24px;
-      font-size: 0.72rem;
-      color: var(--text-muted);
+    .btn-share-native {
+      background: var(--brand-mint);
+      color: #ffffff;
     }
   </style>
 </head>
 <body>
 
-  <!-- 헤더 영역 -->
-  <header class="header">
-    <div class="title-group">
-      <h1>🏸 무한랠리</h1>
-      <p id="sessionDateText">매칭표 불러오는 중...</p>
+  <div class="container">
+    <!-- 헤더 영역 -->
+    <header class="header">
+      <div class="brand-group">
+        <span class="shuttlecock-icon" title="무한랠리!">🏸</span>
+        <div class="brand-title">
+          <h1>무한랠리 <span class="badge-cute">LIVE</span></h1>
+          <p id="sessionDateText">실시간 매칭표 불러오는 중...</p>
+        </div>
+      </div>
+      <div class="header-controls">
+        <!-- 테마 전환 버튼 (라이트/다크) -->
+        <button type="button" class="btn-theme-toggle" id="btnThemeToggle" title="테마 변경">
+          <span id="themeToggleIcon">☀️</span>
+          <span id="themeToggleText">라이트</span>
+        </button>
+
+        <!-- QR 공유 버튼 -->
+        <button type="button" class="btn-qr-share" id="btnOpenQrModal" title="QR 코드로 동호회원에게 공유">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <span>QR</span>
+        </button>
+
+        <!-- 실시간 동기화 상태 배지 -->
+        <div class="live-badge" id="liveStatusBadge">
+          <div class="live-dot" id="liveStatusDot"></div>
+          <span id="liveStatusText">연결 대기</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 공지사항 배너 -->
+    <div class="notice-card" id="noticeBox">
+      <span>📢</span> <span id="noticeContent">코트 배정 후 3분 이내에 코트에 입장해 주세요! 부상 없이 즐겁게 플레이합시다.</span>
     </div>
-    <div class="header-actions">
-      <button type="button" class="btn-qr-share" id="btnOpenQrModal" title="QR 코드로 공유하기">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="7" height="7"></rect>
-          <rect x="14" y="3" width="7" height="7"></rect>
-          <rect x="14" y="14" width="7" height="7"></rect>
-          <rect x="3" y="14" width="7" height="7"></rect>
+
+    <!-- 내 이름 검색 & 실시간 하이라이트 -->
+    <div class="search-card">
+      <div class="search-input-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-sub);">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <span>QR 공유</span>
-      </button>
-      <div class="live-badge" id="liveStatusBadge">
-        <div class="live-dot" id="liveStatusDot"></div>
-        <span id="liveStatusText">연결 대기중</span>
+        <input type="text" id="myPlayerNameInput" class="search-input" placeholder="내 이름 입력 시 내 코트 자동 강조 (예: 김랠리)" maxlength="12" autocomplete="off" />
+        <button type="button" id="clearSearchBtn" class="search-clear-btn" aria-label="입력 지우기">✕</button>
       </div>
+      <div id="myStatusBanner" class="my-status-banner"></div>
     </div>
-  </header>
 
-  <!-- 공지사항 -->
-  <div class="notice-card" id="noticeBox">
-    📢 안내: 코트 배정 후 3분 이내에 코트에 입장해 주세요!
+    <!-- 현재 진행 코트 목록 (1~4코트) -->
+    <section>
+      <div class="section-title">
+        <span>🏸</span> <span>현재 진행 코트</span>
+      </div>
+      <div class="court-grid" id="courtContainer">
+        <div style="grid-column: 1 / -1; text-align: center; padding: 32px 16px; color: var(--text-muted); background: var(--card-bg); border: 1px dashed var(--card-border); border-radius: 16px;">
+          실시간 경기 현황을 불러오고 있습니다... 🏸
+        </div>
+      </div>
+    </section>
+
+    <!-- 다음 대기 경기 목록 -->
+    <section>
+      <div class="section-title">
+        <span>⏳</span> <span>다음 대기 순서</span>
+      </div>
+      <div class="upcoming-list" id="upcomingContainer">
+        <div style="text-align: center; padding: 18px; color: var(--text-muted); font-size: 0.85rem; background: var(--card-bg); border: 1px dashed var(--card-border); border-radius: 14px;">
+          현재 대기 중인 경기가 없습니다.
+        </div>
+      </div>
+    </section>
+
+    <!-- 푸터 -->
+    <footer class="footer-info">
+      <div class="footer-quote">✨ 무한랠리 배드민턴 동호회 ✨</div>
+      <p>본 전광판은 관리자 앱과 1초 이내로 실시간 자동 연동됩니다 (새로고침 불필요).</p>
+      <p style="margin-top: 4px; font-size: 0.72rem; color: var(--text-sub);">Hosted on Firebase Hosting (0-Cost Serverless)</p>
+    </footer>
   </div>
 
-  <!-- 내 이름 찾기 (자동 하이라이트 & 내 경기 상태 안내) -->
-  <div class="search-card">
-    <div class="search-input-wrap">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-      </svg>
-      <input type="text" id="myPlayerNameInput" class="search-input" placeholder="내 이름 입력 시 내 코트 자동 강조 (예: 김랠리)" maxlength="10" autocomplete="off" />
-      <button type="button" id="clearSearchBtn" class="search-clear-btn" aria-label="입력 지우기">✕</button>
-    </div>
-    <div id="myStatusBanner" class="my-status-banner"></div>
-  </div>
-
-  <!-- 현재 진행 경기 목록 -->
-  <section>
-    <div class="section-title">
-      <span>●</span> 현재 진행 중인 게임
-    </div>
-    <div class="court-grid" id="courtContainer">
-      <!-- Firestore onSnapshot 데이터로 동적 렌더링 -->
-      <div style="text-align:center; padding: 24px; color: var(--text-muted);">
-        실시간 경기 목록을 동기화하고 있습니다...
-      </div>
-    </div>
-  </section>
-
-  <!-- 다음 대기 경기 목록 -->
-  <section>
-    <div class="section-title">
-      <span>⏳</span> 다음 대기 경기
-    </div>
-    <div class="upcoming-list" id="upcomingContainer">
-      <div style="text-align:center; padding: 16px; color: var(--text-muted); font-size: 0.8rem;">
-        대기 중인 경기가 없습니다.
-      </div>
-    </div>
-  </section>
-
-  <footer class="footer-info">
-    본 매칭표는 관리자 앱과 연동되어 실시간으로 자동 갱신됩니다 (새로고침 불필요).
-  </footer>
-
-  <!-- QR 코드 공유 모달 -->
+  <!-- QR 코드 모달 -->
   <div class="modal-overlay" id="qrModal">
     <div class="modal-content">
       <div class="modal-header">
         <h3>🏸 웹 전광판 공유</h3>
         <button type="button" class="modal-close-btn" id="btnCloseQrModal">✕</button>
       </div>
-      <p class="modal-desc">주변 회원들에게 이 화면을 보여주면 카메라로 즉시 접속할 수 있습니다.</p>
+      <p class="modal-desc">체육관 회원들에게 보여주면 카메라로 즉시 접속할 수 있습니다.</p>
       <div id="qrcodeWrapper">
         <div id="qrcode"></div>
       </div>
@@ -623,28 +1003,51 @@
     </div>
   </div>
 
-  <!-- QR 생성 경량 라이브러리 (CDN) -->
+  <!-- QR 코드 라이브러리 CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-  <!-- Firebase Modular SDK (v10) & UI Logic -->
+  <!-- Firebase v10 Modular SDK & 클라이언트 전광판 스크립트 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    /**
-     * Firebase 설정 객체
-     */
-    const firebaseConfig = {
-      apiKey: "AIzaSyDdtrr4WiBbEHXQdMc2qlpPlflwYrBf4mw",
-      authDomain: "infinite-rally-gg.firebaseapp.com",
-      projectId: "infinite-rally-gg",
-      storageBucket: "infinite-rally-gg.firebasestorage.app",
-      messagingSenderId: "657291415795",
-      appId: "1:657291415795:web:4b4a9b33b9efdbd34ca786",
-      measurementId: "G-RG82DYKY8Y"
-    };
+    /* =========================================================
+       1. 라이트 / 다크 테마 시스템 (LocalStorage & System Sync)
+       ========================================================= */
+    const themeToggleBtn = document.getElementById('btnThemeToggle');
+    const themeIcon = document.getElementById('themeToggleIcon');
+    const themeText = document.getElementById('themeToggleText');
 
-    // 오늘 날짜 계산 (YYYY-MM-DD)
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      if (theme === 'dark') {
+        themeIcon.textContent = '☀️';
+        themeText.textContent = '라이트';
+      } else {
+        themeIcon.textContent = '🌙';
+        themeText.textContent = '다크';
+      }
+      localStorage.setItem('infinite_rally_web_theme', theme);
+    }
+
+    // 초기 테마 결정: 저장된 값 -> 시스템 기본값 -> 다크모드 기본
+    const savedTheme = localStorage.getItem('infinite_rally_web_theme');
+    if (savedTheme) {
+      applyTheme(savedTheme);
+    } else {
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      applyTheme(prefersDark ? 'dark' : 'light');
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+    });
+
+    /* =========================================================
+       2. 오늘 날짜 및 UI 기본 요소 초기화
+       ========================================================= */
     const getTodayDateString = () => {
       const now = new Date();
       const year = now.getFullYear();
@@ -656,20 +1059,18 @@
     const todayStr = getTodayDateString();
     document.getElementById('sessionDateText').textContent = `${todayStr} 실시간 현황`;
 
-    // 상태 저장 변수
+    // 검색창 & 상태 배너
     let latestSessionData = null;
     const searchInput = document.getElementById('myPlayerNameInput');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
     const myStatusBanner = document.getElementById('myStatusBanner');
 
-    // 로컬스토리지에 저장된 사용자 이름 복원 (재방문 시 자동 하이라이트)
-    const savedName = localStorage.getItem('infinite_rally_my_name') || '';
-    if (savedName) {
-      searchInput.value = savedName;
+    const savedPlayerName = localStorage.getItem('infinite_rally_my_name') || '';
+    if (savedPlayerName) {
+      searchInput.value = savedPlayerName;
       clearSearchBtn.style.display = 'block';
     }
 
-    // 이름 검색 및 자동 하이라이트 이벤트
     searchInput.addEventListener('input', () => {
       const query = searchInput.value.trim();
       clearSearchBtn.style.display = query ? 'block' : 'none';
@@ -693,7 +1094,9 @@
       searchInput.focus();
     });
 
-    // QR 모달 공유 로직
+    /* =========================================================
+       3. QR 코드 공유 모달 로직
+       ========================================================= */
     let qrCodeInstance = null;
     function initQrModal() {
       const qrModal = document.getElementById('qrModal');
@@ -711,19 +1114,18 @@
         if (typeof QRCode !== 'undefined') {
           qrCodeInstance = new QRCode(qrcodeContainer, {
             text: currentUrl,
-            width: 180,
-            height: 180,
+            width: 170,
+            height: 170,
             colorDark: "#0f172a",
             colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.M
           });
         } else {
-          // CDN 불가 시 이미지 Fallback
           const img = document.createElement('img');
-          img.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(currentUrl)}`;
+          img.src = `https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(currentUrl)}`;
           img.alt = 'QR Code';
-          img.style.width = '180px';
-          img.style.height = '180px';
+          img.style.width = '170px';
+          img.style.height = '170px';
           qrcodeContainer.appendChild(img);
         }
       }
@@ -762,25 +1164,26 @@
               url: currentUrl
             });
           } catch (e) {
-            // 사용자 공유 취소 시 무시
+            // 사용자가 공유 창을 닫았을 때
           }
         });
       }
     }
-
     initQrModal();
 
-    // UI 렌더링 함수
+    /* =========================================================
+       4. 대시보드 렌더링 함수 (파스텔 테마 & 4코트 레슨/게임 분기)
+       ========================================================= */
     function renderMatchDashboard(data) {
       if (!data) return;
       latestSessionData = data;
 
-      // 공지사항 업데이트
+      // 공지사항 반영
       if (data.notice) {
-        document.getElementById('noticeBox').textContent = `📢 ${data.notice}`;
+        document.getElementById('noticeContent').textContent = data.notice;
       }
 
-      // 제목 업데이트
+      // 세션 제목 반영
       if (data.title) {
         document.getElementById('sessionDateText').textContent = data.title;
       }
@@ -797,66 +1200,83 @@
       let isUserInLessonActive = false;
       let myLessonWaitOrder = null;
 
-      // 현재 진행 경기 렌더링
       const courtContainer = document.getElementById('courtContainer');
-      if (data.currentGames && data.currentGames.length > 0) {
-        courtContainer.innerHTML = data.currentGames.map(game => {
-          // 레슨 전용 코트 렌더링 (제 4코트 레슨 모드 활성화 시)
-          if (game.courtType === 'lesson' || game.isLesson) {
+      const currentGames = data.currentGames || [];
+
+      if (currentGames.length > 0) {
+        courtContainer.innerHTML = currentGames.map(game => {
+          const courtNum = game.courtNumber || 1;
+          const isLessonCourt = game.courtType === 'lesson' || game.isLesson === true;
+
+          // ----------------------------------------------------
+          // CASE A: 제 4코트 레슨 모드 렌더링
+          // ----------------------------------------------------
+          if (isLessonCourt) {
             const students = game.lessonStudents || [];
             const queue = data.lessonQueue || [];
             const isMyLessonActive = students.some(s => isMatchName(s.name));
             const isMyLessonWaiting = queue.some(q => isMatchName(q.name));
-            const isMyLesson = isMyLessonActive || isMyLessonWaiting;
+            const isMyCourt = isMyLessonActive || isMyLessonWaiting;
 
             if (isMyLessonActive && myCourtNum === null) {
-              myCourtNum = game.courtNumber;
+              myCourtNum = courtNum;
               isUserInLessonActive = true;
             }
             if (isMyLessonWaiting && myLessonWaitOrder === null) {
-              const waitIdx = queue.findIndex(q => isMatchName(q.name));
-              if (waitIdx !== -1) myLessonWaitOrder = waitIdx + 1;
+              const idx = queue.findIndex(q => isMatchName(q.name));
+              if (idx !== -1) myLessonWaitOrder = idx + 1;
             }
 
             const studentsHtml = students.length > 0 ? students.map(s => {
               const matched = isMatchName(s.name);
+              const tier = (s.tier || 'E').toUpperCase();
               return `
-                <div class="player-chip ${matched ? 'my-chip' : ''}" style="background: rgba(147, 51, 234, 0.2); border: 1px solid rgba(168, 85, 247, 0.5); padding: 5px 10px; border-radius: 8px;">
-                  <span style="font-weight: 700; color: #f3e8ff;">${s.name}</span>
-                  <span class="tier-badge" style="background: #9333ea; color: white;">${s.tier || 'E'}</span>
+                <div class="player-chip ${matched ? 'my-chip' : ''}" style="border-color: var(--lesson-card-border); background: var(--card-bg);">
+                  <span style="font-weight: 700; color: var(--text-main);">
+                    ${s.isGuest ? '<span class="guest-tag">G</span>' : ''}${s.name}
+                  </span>
+                  <span class="tier-badge tier-${tier}">${tier}</span>
                 </div>
               `;
-            }).join('') : `<div style="color: var(--text-muted); font-size: 0.82rem; padding: 6px 0;">현재 진행 중인 레슨자가 없습니다.</div>`;
+            }).join('') : `<div style="color: var(--text-muted); font-size: 0.82rem; padding: 4px 0;">현재 참여 중인 레슨자가 없습니다.</div>`;
 
             const queueHtml = queue.length > 0 ? `
-              <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(245, 158, 11, 0.3);">
-                <div style="font-size: 0.75rem; color: #f59e0b; font-weight: 700; margin-bottom: 5px;">⏳ 레슨 대기 명단:</div>
-                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                  ${queue.map((q, idx) => `
-                    <span style="font-size: 0.75rem; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 7px; border-radius: 6px; color: #fde68a;">
-                      ${idx + 1}. ${isMatchName(q.name) ? `<strong class="highlight-name">${q.name}</strong>` : q.name} (${q.tier || 'E'})
-                    </span>
-                  `).join('')}
+              <div class="lesson-queue-section" style="margin-top: 10px;">
+                <div class="lesson-queue-title">
+                  <span>⏳</span> <span>레슨 대기 순번 (${queue.length}명)</span>
+                </div>
+                <div class="lesson-queue-list">
+                  ${queue.map((q, idx) => {
+                    const matched = isMatchName(q.name);
+                    const tier = (q.tier || 'E').toUpperCase();
+                    return `
+                      <span class="lesson-queue-chip ${matched ? 'my-chip' : ''}">
+                        <strong style="color: var(--accent-amber);">${idx + 1}번</strong>
+                        ${matched ? `<strong class="highlight-name">${q.name}</strong>` : q.name}
+                        <span class="tier-badge tier-${tier}" style="font-size:0.6rem; padding: 1px 4px;">${tier}</span>
+                      </span>
+                    `;
+                  }).join('')}
                 </div>
               </div>
             ` : '';
 
             return `
-              <div class="court-card ${isMyLesson ? 'my-court' : ''}" style="border-color: rgba(245, 158, 11, 0.5); background: linear-gradient(180deg, #1e293b 0%, #1a2234 100%);">
-                <div class="court-header" style="border-bottom-color: rgba(245, 158, 11, 0.25);">
-                  <div style="display: flex; align-items: center; gap: 6px;">
-                    <span class="court-name" style="color: #fbbf24;">🏸 제 ${game.courtNumber} 코트 (레슨)</span>
-                    ${isMyLessonActive ? '<span class="my-court-badge" style="background:#9333ea;">내 레슨 🎾</span>' : ''}
-                    ${isMyLessonWaiting ? '<span class="my-court-badge" style="background:#d97706;">레슨 대기 ⏳</span>' : ''}
+              <div class="lesson-court-card ${isMyCourt ? 'my-court' : ''}">
+                <div class="court-header">
+                  <div class="court-name-wrap">
+                    <span class="lesson-title">🎾 제 ${courtNum} 코트 (레슨)</span>
+                    ${isMyLessonActive ? '<span class="my-badge-pill" style="background: var(--accent-purple);">내 레슨 🎾</span>' : ''}
+                    ${isMyLessonWaiting ? '<span class="my-badge-pill" style="background: var(--accent-amber);">레슨 대기 ⏳</span>' : ''}
                   </div>
-                  <span class="game-status-tag" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);">
-                    지도: ${game.lessonCoach || '코치님'}
-                  </span>
+                  <span class="coach-badge">지도: ${game.lessonCoach || data.lessonCoach || '코치님'} 🏸</span>
                 </div>
-                <div class="court-body" style="padding-top: 10px;">
-                  <div style="font-size: 0.78rem; font-weight: 700; color: #c084fc; margin-bottom: 6px;">🎾 레슨 참여자:</div>
-                  <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                    ${studentsHtml}
+                <div class="court-body">
+                  <div class="lesson-students-section">
+                    <div class="lesson-subhead"><span>🎾</span> <span>현재 레슨 진행 중</span></div>
+                    <div class="lesson-students-grid">
+                      ${studentsHtml}
+                    </div>
                   </div>
                   ${queueHtml}
                 </div>
@@ -864,7 +1284,9 @@
             `;
           }
 
-          // 일반 복식 경기 렌더링
+          // ----------------------------------------------------
+          // CASE B: 일반 복식 게임 코트 (1~3코트 또는 4코트 게임모드)
+          // ----------------------------------------------------
           const pA1 = game.teamA?.player1 || {};
           const pA2 = game.teamA?.player2 || {};
           const pB1 = game.teamB?.player1 || {};
@@ -877,49 +1299,63 @@
           const isMyCourt = a1Match || a2Match || b1Match || b2Match;
 
           if (isMyCourt && myCourtNum === null) {
-            myCourtNum = game.courtNumber;
+            myCourtNum = courtNum;
           }
+
+          const renderPlayerChip = (player, isMatch) => {
+            if (!player || !player.name) {
+              return `<div class="player-chip" style="opacity: 0.5;"><span>선수 배정중</span></div>`;
+            }
+            const tier = (player.tier || 'E').toUpperCase();
+            const isGuest = player.isGuest || player.name.startsWith('G ');
+            const displayName = player.name;
+
+            return `
+              <div class="player-chip ${isMatch ? 'my-chip' : ''}">
+                <span style="font-weight: 700;">
+                  ${isGuest ? '<span class="guest-tag">G</span>' : ''}${displayName}
+                </span>
+                <span class="tier-badge tier-${tier}">${tier}</span>
+              </div>
+            `;
+          };
 
           return `
             <div class="court-card ${isMyCourt ? 'my-court' : ''}">
               <div class="court-header">
-                <div style="display: flex; align-items: center;">
-                  <span class="court-name">🏸 제 ${game.courtNumber} 코트</span>
-                  ${isMyCourt ? '<span class="my-court-badge">내 경기 🏸</span>' : ''}
+                <div class="court-name-wrap">
+                  <span class="court-title">🏸 제 ${courtNum} 코트</span>
+                  ${isMyCourt ? '<span class="my-badge-pill" style="background: var(--brand-mint);">내 경기 🏸</span>' : ''}
+                  ${game.isFixedPair ? '<span class="fixed-pair-tag">🤝 고정 페어</span>' : ''}
                 </div>
-                <span class="game-status-tag">${game.status === 'in_progress' ? '경기 진행 중' : '대기 중'}</span>
+                <span class="court-status-tag">${game.status === 'in_progress' ? '🟢 경기 진행 중' : '☕ 대기 중'}</span>
               </div>
               <div class="court-body">
                 <div class="match-row">
                   <!-- Team A -->
                   <div class="team-box team-a">
-                    <span class="team-label">Team A</span>
+                    <div class="team-label-row">
+                      <span class="team-label">Team A 🩵</span>
+                    </div>
                     <div class="player-list">
-                      <div class="player-chip ${a1Match ? 'my-chip' : ''}">
-                        <span>${pA1.name || ''}</span>
-                        <span class="tier-badge">${pA1.tier || ''}</span>
-                      </div>
-                      <div class="player-chip ${a2Match ? 'my-chip' : ''}">
-                        <span>${pA2.name || ''}</span>
-                        <span class="tier-badge">${pA2.tier || ''}</span>
-                      </div>
+                      ${renderPlayerChip(pA1, a1Match)}
+                      ${renderPlayerChip(pA2, a2Match)}
                     </div>
                   </div>
 
-                  <div class="vs-separator">VS</div>
+                  <!-- VS 디바이더 -->
+                  <div class="vs-divider">
+                    <span>VS</span>
+                  </div>
 
                   <!-- Team B -->
                   <div class="team-box team-b">
-                    <span class="team-label">Team B</span>
+                    <div class="team-label-row">
+                      <span class="team-label">Team B 🩷</span>
+                    </div>
                     <div class="player-list">
-                      <div class="player-chip ${b1Match ? 'my-chip' : ''}">
-                        <span class="tier-badge">${pB1.tier || ''}</span>
-                        <span>${pB1.name || ''}</span>
-                      </div>
-                      <div class="player-chip ${b2Match ? 'my-chip' : ''}">
-                        <span class="tier-badge">${pB2.tier || ''}</span>
-                        <span>${pB2.name || ''}</span>
-                      </div>
+                      ${renderPlayerChip(pB1, b1Match)}
+                      ${renderPlayerChip(pB2, b2Match)}
                     </div>
                   </div>
                 </div>
@@ -929,16 +1365,21 @@
         }).join('');
       } else {
         courtContainer.innerHTML = `
-          <div style="text-align:center; padding: 24px; color: var(--text-muted);">
-            현재 진행 중인 경기가 없습니다.
+          <div style="grid-column: 1 / -1; text-align: center; padding: 32px 16px; color: var(--text-muted); background: var(--card-bg); border: 1.5px dashed var(--card-border); border-radius: 18px;">
+            <p style="font-size: 1.05rem; font-weight: 800; margin-bottom: 6px;">🏸 현재 진행 중인 경기가 없습니다.</p>
+            <p style="font-size: 0.82rem; color: var(--text-sub);">관리자 앱에서 [게임 생성 및 매칭]을 진행하면 실시간으로 표시됩니다.</p>
           </div>
         `;
       }
 
-      // 다음 대기 경기 렌더링
+      // ----------------------------------------------------
+      // CASE C: 다음 대기 경기 리스트 렌더링
+      // ----------------------------------------------------
       const upcomingContainer = document.getElementById('upcomingContainer');
-      if (data.upcomingGames && data.upcomingGames.length > 0) {
-        upcomingContainer.innerHTML = data.upcomingGames.map(game => {
+      const upcomingGames = data.upcomingGames || [];
+
+      if (upcomingGames.length > 0) {
+        upcomingContainer.innerHTML = upcomingGames.map(game => {
           const isMineA = (game.teamA || []).some(name => isMatchName(name));
           const isMineB = (game.teamB || []).some(name => isMatchName(name));
           const isMyUpcoming = isMineA || isMineB;
@@ -948,8 +1389,8 @@
             myWaitDesignatedCourt = game.designatedCourt;
           }
 
-          const renderTeamText = (teamList) => {
-            return (teamList || []).map(name => {
+          const renderTeamList = (list) => {
+            return (list || []).map(name => {
               if (isMatchName(name)) {
                 return `<strong class="highlight-name">${name}</strong>`;
               }
@@ -959,60 +1400,78 @@
 
           return `
             <div class="upcoming-card ${isMyUpcoming ? 'my-upcoming' : ''}">
-              <span class="upcoming-order">대기 ${game.order}</span>
-              <div class="upcoming-teams">
-                <span class="upcoming-team-text">${renderTeamText(game.teamA)}</span>
-                <span style="color: var(--text-muted); font-size:0.75rem;">VS</span>
-                <span class="upcoming-team-text">${renderTeamText(game.teamB)}</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="upcoming-order-pill">대기 ${game.order}번</span>
+                <div class="upcoming-teams">
+                  <span class="upcoming-team-names">${renderTeamList(game.teamA)}</span>
+                  <span style="font-size: 0.76rem; font-weight: 800; color: var(--text-sub);">vs</span>
+                  <span class="upcoming-team-names">${renderTeamList(game.teamB)}</span>
+                </div>
               </div>
-              ${game.designatedCourt ? `<span style="font-size:0.75rem; color:var(--accent-blue);">${game.designatedCourt}코트 예정</span>` : ''}
+              ${game.designatedCourt ? `<span class="upcoming-court-hint">${game.designatedCourt}코트 예정</span>` : ''}
             </div>
           `;
         }).join('');
       } else {
         upcomingContainer.innerHTML = `
-          <div style="text-align:center; padding: 16px; color: var(--text-muted); font-size: 0.8rem;">
-            대기 중인 경기가 없습니다.
+          <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.85rem; background: var(--card-bg); border: 1.5px dashed var(--card-border); border-radius: 14px;">
+            대기 중인 다음 경기가 없습니다.
           </div>
         `;
       }
 
-      // 상단 내 상태 배너 업데이트
+      // ----------------------------------------------------
+      // CASE D: 상단 내 상태 배너 업데이트 (개인화 메시지)
+      // ----------------------------------------------------
       if (!query) {
         myStatusBanner.style.display = 'none';
       } else {
         myStatusBanner.style.display = 'block';
+        const searchName = searchInput.value.trim();
+
         if (isUserInLessonActive) {
-          myStatusBanner.style.background = 'rgba(147, 51, 234, 0.15)';
-          myStatusBanner.style.borderColor = 'rgba(147, 51, 234, 0.4)';
-          myStatusBanner.style.color = '#c084fc';
-          myStatusBanner.innerHTML = `🎾 <strong>${searchInput.value.trim()}</strong>님은 현재 <strong>제 ${myCourtNum} 코트 레슨</strong>에 참여 중입니다!`;
+          myStatusBanner.style.background = 'var(--lesson-header-bg)';
+          myStatusBanner.style.border = '1.5px solid var(--lesson-card-border)';
+          myStatusBanner.style.color = 'var(--lesson-text)';
+          myStatusBanner.innerHTML = `🎾 <strong>${searchName}</strong>님은 현재 <strong>제 ${myCourtNum} 코트 레슨</strong>에 참여 중입니다! 즐겁게 훈련하세요!`;
         } else if (myLessonWaitOrder !== null) {
-          myStatusBanner.style.background = 'rgba(245, 158, 11, 0.15)';
-          myStatusBanner.style.borderColor = 'rgba(245, 158, 11, 0.4)';
-          myStatusBanner.style.color = '#fbbf24';
-          myStatusBanner.innerHTML = `⏳ <strong>${searchInput.value.trim()}</strong>님은 <strong>레슨 대기 ${myLessonWaitOrder}번</strong>에 배정되어 있습니다.`;
+          myStatusBanner.style.background = 'var(--lesson-queue-bg)';
+          myStatusBanner.style.border = '1.5px solid var(--lesson-queue-border)';
+          myStatusBanner.style.color = 'var(--accent-amber)';
+          myStatusBanner.innerHTML = `⏳ <strong>${searchName}</strong>님은 현재 <strong>레슨 대기 ${myLessonWaitOrder}번</strong>입니다. 잠시 코트 주변에서 대기해 주세요!`;
         } else if (myCourtNum !== null) {
-          myStatusBanner.style.background = 'rgba(16, 185, 129, 0.15)';
-          myStatusBanner.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-          myStatusBanner.style.color = 'var(--accent-green)';
-          myStatusBanner.innerHTML = `🎉 <strong>${searchInput.value.trim()}</strong>님은 현재 <strong>제 ${myCourtNum} 코트</strong> 경기 출전 중입니다!`;
+          myStatusBanner.style.background = 'var(--brand-mint-light)';
+          myStatusBanner.style.border = '1.5px solid var(--brand-mint-border)';
+          myStatusBanner.style.color = 'var(--brand-mint)';
+          myStatusBanner.innerHTML = `🎉 <strong>${searchName}</strong>님은 현재 <strong>제 ${myCourtNum} 코트</strong> 경기 출전 중입니다! 화이팅 🏸!`;
         } else if (myWaitOrder !== null) {
-          myStatusBanner.style.background = 'rgba(56, 189, 248, 0.15)';
-          myStatusBanner.style.borderColor = 'rgba(56, 189, 248, 0.4)';
-          myStatusBanner.style.color = 'var(--accent-blue)';
-          const courtNote = myWaitDesignatedCourt ? ` (${myWaitDesignatedCourt}코트 예정)` : '';
-          myStatusBanner.innerHTML = `⏳ <strong>${searchInput.value.trim()}</strong>님은 <strong>다음 대기 ${myWaitOrder}번</strong>${courtNote}에 배정되어 있습니다.`;
+          myStatusBanner.style.background = 'var(--team-a-bg)';
+          myStatusBanner.style.border = '1.5px solid var(--team-a-border)';
+          myStatusBanner.style.color = 'var(--team-a-text)';
+          const courtNote = myWaitDesignatedCourt ? ` (<strong>${myWaitDesignatedCourt}코트 예정</strong>)` : '';
+          myStatusBanner.innerHTML = `⏳ <strong>${searchName}</strong>님은 <strong>다음 대기 ${myWaitOrder}번</strong>${courtNote}에 배정되어 있습니다. 준비해 주세요!`;
         } else {
-          myStatusBanner.style.background = 'rgba(148, 163, 184, 0.1)';
-          myStatusBanner.style.borderColor = 'rgba(148, 163, 184, 0.25)';
+          myStatusBanner.style.background = 'var(--bg-base)';
+          myStatusBanner.style.border = '1px solid var(--card-border)';
           myStatusBanner.style.color = 'var(--text-muted)';
-          myStatusBanner.innerHTML = `🔍 <strong>${searchInput.value.trim()}</strong>님의 현재 진행/대기 경기가 없습니다 (다음 매칭을 기다려주세요).`;
+          myStatusBanner.innerHTML = `🔍 <strong>${searchName}</strong>님의 현재 진행/대기 경기가 없습니다. 다음 매칭을 기다려주세요 😊`;
         }
       }
     }
 
-    // Firebase 연결 및 리스너 등록
+    /* =========================================================
+       5. Firebase Firestore 실시간 연동 (Spark 100% 무료)
+       ========================================================= */
+    const firebaseConfig = {
+      apiKey: "AIzaSyDdtrr4WiBbEHXQdMc2qlpPlflwYrBf4mw",
+      authDomain: "infinite-rally-gg.firebaseapp.com",
+      projectId: "infinite-rally-gg",
+      storageBucket: "infinite-rally-gg.firebasestorage.app",
+      messagingSenderId: "657291415795",
+      appId: "1:657291415795:web:4b4a9b33b9efdbd34ca786",
+      measurementId: "G-RG82DYKY8Y"
+    };
+
     const isConfigured = firebaseConfig.projectId && firebaseConfig.projectId !== "YOUR_PROJECT_ID";
 
     if (isConfigured) {
@@ -1020,7 +1479,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // 당일 세션 문서 실시간 구독 (onSnapshot)
+        // 당일 세션 단일 문서 실시간 리스너 (onSnapshot)
         const sessionDocRef = doc(db, "daily_sessions", todayStr);
 
         onSnapshot(sessionDocRef, (docSnap) => {
@@ -1031,12 +1490,12 @@
             const badge = document.getElementById('liveStatusBadge');
             const dot = document.getElementById('liveStatusDot');
             const text = document.getElementById('liveStatusText');
-            badge.style.borderColor = "rgba(16, 185, 129, 0.4)";
-            badge.style.color = "var(--accent-green)";
-            dot.style.backgroundColor = "var(--accent-green)";
-            text.textContent = "실시간 동기화 중";
+            badge.style.borderColor = "var(--brand-mint-border)";
+            badge.style.color = "var(--brand-mint)";
+            dot.style.backgroundColor = "var(--brand-mint)";
+            text.textContent = "실시간 LIVE";
           } else {
-            document.getElementById('liveStatusText').textContent = "오늘 매칭 생성 대기";
+            document.getElementById('liveStatusText').textContent = "오늘 매칭 대기";
           }
         }, (error) => {
           console.error("Firestore 리스너 에러:", error);
@@ -1046,47 +1505,83 @@
         console.error("Firebase 초기화 에러:", err);
       }
     } else {
-      // Firebase 키 미설정 시 데모 프리뷰 모드 실행
-      console.log("Firebase 설정이 비어있어 데모 모드로 프리뷰 데이터를 렌더링합니다.");
-      document.getElementById('liveStatusText').textContent = "데모 프리뷰 모드";
+      // 데모 모드 프리뷰
+      console.log("Firebase 설정이 비어있어 데모 프리뷰 모드로 렌더링합니다.");
+      document.getElementById('liveStatusText').textContent = "데모 모드";
 
       const demoData = {
-        title: "무한랠리 정기모임 (데모 프리뷰)",
-        notice: "Firebase 연동 전 프리뷰 화면입니다. 관리자 앱에서 매칭표가 전송되면 실시간 반영됩니다.",
+        title: "무한랠리 배드민턴 동호회 (데모)",
+        notice: "코트 배정 후 3분 이내에 코트에 입장해 주세요! 부상 없이 즐겁게 플레이합시다.",
+        lessonCoach: "김코치님",
+        lessonQueue: [
+          { name: "최헤어핀", tier: "B" },
+          { name: "송푸시", tier: "C" }
+        ],
         currentGames: [
           {
             courtNumber: 1,
             gameId: "demo_1",
             status: "in_progress",
+            isFixedPair: false,
+            courtType: "game",
             teamA: {
-              player1: { name: "김랠리", tier: "B" },
+              player1: { name: "김랠리", tier: "S" },
               player2: { name: "이민턴", tier: "C" }
             },
             teamB: {
-              player1: { name: "박스매시", tier: "B" },
-              player2: { name: "최헤어핀", tier: "C" }
+              player1: { name: "박스매시", tier: "A" },
+              player2: { name: "권로브", tier: "B" }
             }
           },
           {
             courtNumber: 2,
             gameId: "demo_2",
             status: "in_progress",
+            isFixedPair: true,
+            courtType: "game",
             teamA: {
-              player1: { name: "정클리어", tier: "A" },
+              player1: { name: "정클리어", tier: "B" },
               player2: { name: "강드라이브", tier: "B" }
             },
             teamB: {
               player1: { name: "윤서브", tier: "A" },
-              player2: { name: "송푸시", tier: "B" }
+              player2: { name: "황탑", tier: "D" }
             }
+          },
+          {
+            courtNumber: 3,
+            gameId: "demo_3",
+            status: "in_progress",
+            isFixedPair: false,
+            courtType: "game",
+            teamA: {
+              player1: { name: "손프론트", tier: "E" },
+              player2: { name: "임스트록", tier: "A" }
+            },
+            teamB: {
+              player1: { name: "문드롭", tier: "D" },
+              player2: { name: "배풋워크", tier: "D" }
+            }
+          },
+          {
+            courtNumber: 4,
+            gameId: "demo_4",
+            status: "in_progress",
+            courtType: "lesson",
+            isLesson: true,
+            lessonCoach: "김코치님",
+            lessonStudents: [
+              { name: "신앤드", tier: "E" },
+              { name: "한콕", tier: "C" }
+            ]
           }
         ],
         upcomingGames: [
           {
             order: 1,
             designatedCourt: 1,
-            teamA: ["한콕 (C)", "오네트 (D)"],
-            teamB: ["문드롭 (C)", "신앤드 (D)"]
+            teamA: ["오네트 (D)", "장스윙 (S)"],
+            teamB: ["노크로스 (B)", "서하이 (B)"]
           }
         ]
       };
@@ -1096,4 +1591,3 @@
   </script>
 </body>
 </html>
-
