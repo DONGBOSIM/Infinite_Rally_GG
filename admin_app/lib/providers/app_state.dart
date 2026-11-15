@@ -272,13 +272,6 @@ class AppState extends ChangeNotifier {
 
     notifyListeners();
   }
-      if (gName.trim().isNotEmpty) {
-        addGuest(name: gName.trim(), tier: defaultGuestTier, gender: 'M');
-      }
-    }
-
-    notifyListeners();
-  }
 
   // 전체 출석 처리 / 전체 해제
   void setAllAttendance(bool present) {
