@@ -71,7 +71,7 @@ class MatchTab extends StatelessWidget {
                             IconButton(
                               icon: const Icon(Icons.remove_circle_outline),
                               onPressed: appState.courtCount > 1
-                                   () => appState.setCourtCount(appState.courtCount - 1)
+                                  ? () => appState.setCourtCount(appState.courtCount - 1)
                                   : null,
                             ),
                             Text(

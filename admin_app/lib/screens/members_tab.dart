@@ -127,13 +127,6 @@ class _MembersTabState extends State<MembersTab> {
               ],
             ),
           ),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedTierFilter = val);
-                  },
-                )
-              ],
-            ),
-          ),
 
           // 회원 리스트
           Expanded(
