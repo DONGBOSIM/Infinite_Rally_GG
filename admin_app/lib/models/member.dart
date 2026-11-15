@@ -7,7 +7,7 @@ class Member {
   int matchCountToday; // 오늘 경기 수
   bool isGuest; // 게스트 여부
   bool hasSubmittedShuttle; // 콕 제출(출석 확정) 여부
-  bool isLesson; // 레슨 신청 여부
+  String lessonStatus; // "none" (일반), "waiting" (레슨 대기), "active" (레슨 진행중)
   String? fixedPartnerId; // 고정 페어(파트너) 회원 ID
 
   Member({
@@ -19,9 +19,16 @@ class Member {
     this.matchCountToday = 0,
     this.isGuest = false,
     this.hasSubmittedShuttle = false,
-    this.isLesson = false,
+    this.lessonStatus = 'none',
     this.fixedPartnerId,
   });
+
+  bool get isLesson => lessonStatus == 'active';
+  set isLesson(bool val) {
+    lessonStatus = val ? 'active' : 'none';
+  }
+  bool get isLessonWaiting => lessonStatus == 'waiting';
+  bool get isLessonAny => lessonStatus != 'none';
 
   // 6단계 급수별 밸런스 점수 (매칭 밸런싱용: S=5, A=4, B=3, C=2, D=1, E=0)
   int get tierScore {
@@ -59,8 +66,8 @@ class Member {
     bool? isPresent,
     int? matchCountToday,
     bool? isGuest,
-    bool hasSubmittedShuttle = false,
-    bool? isLesson,
+    bool? hasSubmittedShuttle,
+    String? lessonStatus,
     String? fixedPartnerId,
   }) {
     return Member(
@@ -71,8 +78,8 @@ class Member {
       isPresent: isPresent ?? this.isPresent,
       matchCountToday: matchCountToday ?? this.matchCountToday,
       isGuest: isGuest ?? this.isGuest,
-      hasSubmittedShuttle: hasSubmittedShuttle,
-      isLesson: isLesson ?? this.isLesson,
+      hasSubmittedShuttle: hasSubmittedShuttle ?? this.hasSubmittedShuttle,
+      lessonStatus: lessonStatus ?? this.lessonStatus,
       fixedPartnerId: fixedPartnerId ?? this.fixedPartnerId,
     );
   }
@@ -87,12 +94,23 @@ class Member {
       'matchCountToday': matchCountToday,
       'isGuest': isGuest,
       'hasSubmittedShuttle': hasSubmittedShuttle,
-      'isLesson': isLesson,
+      'lessonStatus': lessonStatus,
+      'isLesson': isLesson, // 웹 뷰어 등 하위 호환용
       'fixedPartnerId': fixedPartnerId,
     };
   }
 
   factory Member.fromMap(Map<String, dynamic> map) {
+    String parseLessonStatus() {
+      if (map['lessonStatus'] != null) {
+        return map['lessonStatus'];
+      }
+      if (map['isLesson'] == true) {
+        return 'active';
+      }
+      return 'none';
+    }
+
     return Member(
       id: map['id'] ?? '',
       name: map['name'] ?? '',
@@ -102,7 +120,7 @@ class Member {
       matchCountToday: map['matchCountToday'] ?? 0,
       isGuest: map['isGuest'] ?? false,
       hasSubmittedShuttle: map['hasSubmittedShuttle'] ?? false,
-      isLesson: map['isLesson'] ?? false,
+      lessonStatus: parseLessonStatus(),
       fixedPartnerId: map['fixedPartnerId'],
     );
   }

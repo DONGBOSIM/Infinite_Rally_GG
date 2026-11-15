@@ -142,7 +142,7 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '레슨: ${appState.lessonCount}명',
+                        '레슨: 대기 ${appState.waitingLessonCount} / 진행 ${appState.activeLessonCount}',
                         style: TextStyle(
                           color: Colors.orange.shade700,
                           fontWeight: FontWeight.bold,
@@ -269,65 +269,108 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // 콕 제출 토글 버튼
-                          InkWell(
-                            onTap: () => appState.toggleShuttleSubmission(member.id),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: member.hasSubmittedShuttle
-                                    ? (isDark ? Colors.green.shade900.withOpacity(0.4) : Colors.green.shade50)
-                                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
-                                border: Border.all(
-                                  color: member.hasSubmittedShuttle ? Colors.green.shade600 : Colors.grey.shade400,
-                                ),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    member.hasSubmittedShuttle ? Icons.check_circle : Icons.radio_button_unchecked,
-                                    size: 14,
-                                    color: member.hasSubmittedShuttle ? Colors.green.shade600 : Colors.grey,
+                          // 콕 제출 토글 버튼 (누른 회원만 출석자로 게임 매칭 포함)
+                          Tooltip(
+                            message: member.hasSubmittedShuttle ? '콕 제출 완료 (게임 매칭 포함)' : '콕 미제출 (게임 매칭 제외)',
+                            child: InkWell(
+                              onTap: () => appState.toggleShuttleSubmission(member.id),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: member.hasSubmittedShuttle
+                                      ? (isDark ? Colors.green.shade900.withOpacity(0.4) : Colors.green.shade50)
+                                      : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
+                                  border: Border.all(
+                                    color: member.hasSubmittedShuttle ? Colors.green.shade600 : Colors.grey.shade400,
+                                    width: member.hasSubmittedShuttle ? 1.5 : 1,
                                   ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '콕 제출',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      member.hasSubmittedShuttle ? Icons.check_circle : Icons.radio_button_unchecked,
+                                      size: 14,
                                       color: member.hasSubmittedShuttle ? Colors.green.shade600 : Colors.grey,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      member.hasSubmittedShuttle ? '콕 제출됨' : '콕 미제출',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: member.hasSubmittedShuttle ? Colors.green.shade600 : Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 6),
 
-                          // 레슨 신청 토글 버튼
-                          InkWell(
-                            onTap: () => appState.toggleLesson(member.id),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: member.isLesson
-                                    ? (isDark ? Colors.orange.shade900.withOpacity(0.4) : Colors.orange.shade50)
-                                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
-                                border: Border.all(
-                                  color: member.isLesson ? Colors.orange.shade600 : Colors.grey.shade400,
+                          // 레슨 상태 순환 버튼 (터치: 없음 -> 레슨 대기 -> 레슨 진행 -> 없음)
+                          Tooltip(
+                            message: '레슨 순환 (터치: 대기 -> 진행 -> 해제)',
+                            child: InkWell(
+                              onTap: () => appState.cycleLessonStatus(member.id),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: member.lessonStatus == 'active'
+                                      ? (isDark ? const Color(0xFF581C87) : Colors.purple.shade100)
+                                      : (member.lessonStatus == 'waiting'
+                                          ? (isDark ? const Color(0xFF78350F) : Colors.amber.shade100)
+                                          : (isDark ? Colors.grey.shade800 : Colors.grey.shade100)),
+                                  border: Border.all(
+                                    color: member.lessonStatus == 'active'
+                                        ? Colors.purple.shade600
+                                        : (member.lessonStatus == 'waiting'
+                                            ? Colors.amber.shade700
+                                            : Colors.grey.shade400),
+                                    width: member.lessonStatus != 'none' ? 1.5 : 1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '레슨',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: member.isLesson ? Colors.orange.shade700 : Colors.grey,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (member.lessonStatus == 'active') ...[
+                                      Icon(Icons.sports_tennis, size: 13, color: isDark ? Colors.purple.shade200 : Colors.purple.shade800),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        '레슨 진행',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.purple.shade200 : Colors.purple.shade800,
+                                        ),
+                                      ),
+                                    ] else if (member.lessonStatus == 'waiting') ...[
+                                      Icon(Icons.hourglass_top, size: 13, color: isDark ? Colors.amber.shade200 : Colors.amber.shade900),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        '레슨 대기',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      Text(
+                                        '레슨',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                             ),
@@ -428,25 +471,52 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                     ),
                   ],
                 ),
-                subtitle: Text('오늘 게임: ${member.matchCountToday}회 | 콕 제출: ${member.hasSubmittedShuttle ? "완료" : "미제출"}'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      member.isPresent ? '참석' : '미참석',
-                      style: TextStyle(
-                        color: member.isPresent ? Colors.green : Colors.grey,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                subtitle: Text('급수: ${member.tier}조 | 성별: ${member.gender == 'M' ? "남성" : "여성"}'),
+                trailing: member.isPresent
+                    ? Tooltip(
+                        message: '오늘 참여자로 등록되어 있습니다 (터치 시 목록에서 제외)',
+                        child: InkWell(
+                          onTap: () => appState.toggleAttendance(member.id),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E3A5F) : Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: isDark ? Colors.blue.shade700 : Colors.blue.shade300,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check, size: 14, color: isDark ? Colors.blue.shade300 : Colors.blue.shade700),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '오늘 참여중',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.blue.shade300 : Colors.blue.shade800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                    : OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          foregroundColor: isDark ? Colors.blue.shade300 : Colors.indigo.shade800,
+                          side: BorderSide(color: isDark ? Colors.blue.shade700 : Colors.indigo.shade300),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                        icon: const Icon(Icons.person_add_alt, size: 14),
+                        label: const Text('+ 오늘 참여', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        onPressed: () => appState.toggleAttendance(member.id),
                       ),
-                    ),
-                    Switch(
-                      value: member.isPresent,
-                      activeColor: Colors.green,
-                      onChanged: (_) => appState.toggleAttendance(member.id),
-                    ),
-                  ],
-                ),
               );
             },
           ),
@@ -548,6 +618,11 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                   Text(
                     '인식된 회원 ${result.matchedMembers.length}명 / 게스트 후보 ${result.potentialGuestNames.length}명',
                     style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo.shade700, fontSize: 13),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '※ 등록된 인원은 [오늘 참여자]로 등록되며, 체육관에서 [콕 제출] 시 게임 매칭에 포함됩니다.',
+                    style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                   ),
                   const Divider(height: 16),
 

@@ -794,15 +794,86 @@
       let myCourtNum = null;
       let myWaitOrder = null;
       let myWaitDesignatedCourt = null;
+      let isUserInLessonActive = false;
+      let myLessonWaitOrder = null;
 
       // 현재 진행 경기 렌더링
       const courtContainer = document.getElementById('courtContainer');
       if (data.currentGames && data.currentGames.length > 0) {
         courtContainer.innerHTML = data.currentGames.map(game => {
-          const a1Match = isMatchName(game.teamA.player1.name);
-          const a2Match = isMatchName(game.teamA.player2.name);
-          const b1Match = isMatchName(game.teamB.player1.name);
-          const b2Match = isMatchName(game.teamB.player2.name);
+          // 레슨 전용 코트 렌더링 (제 4코트 레슨 모드 활성화 시)
+          if (game.courtType === 'lesson' || game.isLesson) {
+            const students = game.lessonStudents || [];
+            const queue = data.lessonQueue || [];
+            const isMyLessonActive = students.some(s => isMatchName(s.name));
+            const isMyLessonWaiting = queue.some(q => isMatchName(q.name));
+            const isMyLesson = isMyLessonActive || isMyLessonWaiting;
+
+            if (isMyLessonActive && myCourtNum === null) {
+              myCourtNum = game.courtNumber;
+              isUserInLessonActive = true;
+            }
+            if (isMyLessonWaiting && myLessonWaitOrder === null) {
+              const waitIdx = queue.findIndex(q => isMatchName(q.name));
+              if (waitIdx !== -1) myLessonWaitOrder = waitIdx + 1;
+            }
+
+            const studentsHtml = students.length > 0 ? students.map(s => {
+              const matched = isMatchName(s.name);
+              return `
+                <div class="player-chip ${matched ? 'my-chip' : ''}" style="background: rgba(147, 51, 234, 0.2); border: 1px solid rgba(168, 85, 247, 0.5); padding: 5px 10px; border-radius: 8px;">
+                  <span style="font-weight: 700; color: #f3e8ff;">${s.name}</span>
+                  <span class="tier-badge" style="background: #9333ea; color: white;">${s.tier || 'E'}</span>
+                </div>
+              `;
+            }).join('') : `<div style="color: var(--text-muted); font-size: 0.82rem; padding: 6px 0;">현재 진행 중인 레슨자가 없습니다.</div>`;
+
+            const queueHtml = queue.length > 0 ? `
+              <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(245, 158, 11, 0.3);">
+                <div style="font-size: 0.75rem; color: #f59e0b; font-weight: 700; margin-bottom: 5px;">⏳ 레슨 대기 명단:</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                  ${queue.map((q, idx) => `
+                    <span style="font-size: 0.75rem; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 7px; border-radius: 6px; color: #fde68a;">
+                      ${idx + 1}. ${isMatchName(q.name) ? `<strong class="highlight-name">${q.name}</strong>` : q.name} (${q.tier || 'E'})
+                    </span>
+                  `).join('')}
+                </div>
+              </div>
+            ` : '';
+
+            return `
+              <div class="court-card ${isMyLesson ? 'my-court' : ''}" style="border-color: rgba(245, 158, 11, 0.5); background: linear-gradient(180deg, #1e293b 0%, #1a2234 100%);">
+                <div class="court-header" style="border-bottom-color: rgba(245, 158, 11, 0.25);">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span class="court-name" style="color: #fbbf24;">🏸 제 ${game.courtNumber} 코트 (레슨)</span>
+                    ${isMyLessonActive ? '<span class="my-court-badge" style="background:#9333ea;">내 레슨 🎾</span>' : ''}
+                    ${isMyLessonWaiting ? '<span class="my-court-badge" style="background:#d97706;">레슨 대기 ⏳</span>' : ''}
+                  </div>
+                  <span class="game-status-tag" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);">
+                    지도: ${game.lessonCoach || '코치님'}
+                  </span>
+                </div>
+                <div class="court-body" style="padding-top: 10px;">
+                  <div style="font-size: 0.78rem; font-weight: 700; color: #c084fc; margin-bottom: 6px;">🎾 레슨 참여자:</div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    ${studentsHtml}
+                  </div>
+                  ${queueHtml}
+                </div>
+              </div>
+            `;
+          }
+
+          // 일반 복식 경기 렌더링
+          const pA1 = game.teamA?.player1 || {};
+          const pA2 = game.teamA?.player2 || {};
+          const pB1 = game.teamB?.player1 || {};
+          const pB2 = game.teamB?.player2 || {};
+
+          const a1Match = isMatchName(pA1.name);
+          const a2Match = isMatchName(pA2.name);
+          const b1Match = isMatchName(pB1.name);
+          const b2Match = isMatchName(pB2.name);
           const isMyCourt = a1Match || a2Match || b1Match || b2Match;
 
           if (isMyCourt && myCourtNum === null) {
@@ -825,12 +896,12 @@
                     <span class="team-label">Team A</span>
                     <div class="player-list">
                       <div class="player-chip ${a1Match ? 'my-chip' : ''}">
-                        <span>${game.teamA.player1.name}</span>
-                        <span class="tier-badge">${game.teamA.player1.tier}</span>
+                        <span>${pA1.name || ''}</span>
+                        <span class="tier-badge">${pA1.tier || ''}</span>
                       </div>
                       <div class="player-chip ${a2Match ? 'my-chip' : ''}">
-                        <span>${game.teamA.player2.name}</span>
-                        <span class="tier-badge">${game.teamA.player2.tier}</span>
+                        <span>${pA2.name || ''}</span>
+                        <span class="tier-badge">${pA2.tier || ''}</span>
                       </div>
                     </div>
                   </div>
@@ -842,12 +913,12 @@
                     <span class="team-label">Team B</span>
                     <div class="player-list">
                       <div class="player-chip ${b1Match ? 'my-chip' : ''}">
-                        <span class="tier-badge">${game.teamB.player1.tier}</span>
-                        <span>${game.teamB.player1.name}</span>
+                        <span class="tier-badge">${pB1.tier || ''}</span>
+                        <span>${pB1.name || ''}</span>
                       </div>
                       <div class="player-chip ${b2Match ? 'my-chip' : ''}">
-                        <span class="tier-badge">${game.teamB.player2.tier}</span>
-                        <span>${game.teamB.player2.name}</span>
+                        <span class="tier-badge">${pB2.tier || ''}</span>
+                        <span>${pB2.name || ''}</span>
                       </div>
                     </div>
                   </div>
@@ -911,7 +982,17 @@
         myStatusBanner.style.display = 'none';
       } else {
         myStatusBanner.style.display = 'block';
-        if (myCourtNum !== null) {
+        if (isUserInLessonActive) {
+          myStatusBanner.style.background = 'rgba(147, 51, 234, 0.15)';
+          myStatusBanner.style.borderColor = 'rgba(147, 51, 234, 0.4)';
+          myStatusBanner.style.color = '#c084fc';
+          myStatusBanner.innerHTML = `🎾 <strong>${searchInput.value.trim()}</strong>님은 현재 <strong>제 ${myCourtNum} 코트 레슨</strong>에 참여 중입니다!`;
+        } else if (myLessonWaitOrder !== null) {
+          myStatusBanner.style.background = 'rgba(245, 158, 11, 0.15)';
+          myStatusBanner.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+          myStatusBanner.style.color = '#fbbf24';
+          myStatusBanner.innerHTML = `⏳ <strong>${searchInput.value.trim()}</strong>님은 <strong>레슨 대기 ${myLessonWaitOrder}번</strong>에 배정되어 있습니다.`;
+        } else if (myCourtNum !== null) {
           myStatusBanner.style.background = 'rgba(16, 185, 129, 0.15)';
           myStatusBanner.style.borderColor = 'rgba(16, 185, 129, 0.4)';
           myStatusBanner.style.color = 'var(--accent-green)';

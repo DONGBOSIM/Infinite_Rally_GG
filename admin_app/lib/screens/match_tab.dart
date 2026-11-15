@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../models/game_match.dart';
+import '../models/member.dart';
 
 class MatchTab extends StatelessWidget {
   const MatchTab({super.key});
@@ -128,9 +130,12 @@ class MatchTab extends StatelessWidget {
                             icon: const Icon(Icons.auto_awesome),
                             label: const Text('공평 자동 매칭 생성', style: TextStyle(fontWeight: FontWeight.bold)),
                             onPressed: () {
-                              if (appState.presentCount < 4) {
+                              if (appState.matchEligibleCount < 4 &&
+                                  !(appState.isLessonCourtEnabled && appState.activeLessonCount > 0)) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('참석 회원이 4명 이상이어야 매칭이 가능합니다.')),
+                                  SnackBar(
+                                    content: Text('콕을 제출한 경기 참여 회원이 4명 이상이어야 합니다. (현재 콕 제출: ${appState.matchEligibleCount}명)'),
+                                  ),
                                 );
                                 return;
                               }
@@ -160,7 +165,7 @@ class MatchTab extends StatelessWidget {
                 ),
                 if (currentGames.isNotEmpty)
                   Text(
-                    '총 출전: ${currentGames.length * 4}명',
+                    '총 출전: ${currentGames.fold<int>(0, (sum, g) => sum + (g.courtType == 'lesson' ? g.lessonStudents.length : (g.teamA.length + g.teamB.length)))}명',
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                   ),
               ],
@@ -172,7 +177,7 @@ class MatchTab extends StatelessWidget {
                 padding: const EdgeInsets.all(32),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -195,165 +200,10 @@ class MatchTab extends StatelessWidget {
                 itemCount: currentGames.length,
                 itemBuilder: (context, index) {
                   final game = currentGames[index];
-                  final isFinished = game.status == 'finished';
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    elevation: 1.5,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(
-                        color: isFinished ? Colors.grey.shade300 : Colors.blue.shade300,
-                        width: 1.2,
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue.shade700,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      '제 ${game.courtNumber} 코트',
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '시작: ${game.startTime}',
-                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                              if (!isFinished)
-                                TextButton.icon(
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Colors.green.shade700,
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                  icon: const Icon(Icons.check_circle_outline, size: 18),
-                                  label: const Text('경기 종료'),
-                                  onPressed: () {
-                                    appState.finishGame(game.courtNumber);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('제 ${game.courtNumber} 코트 경기가 종료되어 경기 횟수가 반영되었습니다.')),
-                                    );
-                                  },
-                                )
-                              else
-                                const Chip(
-                                  label: Text('종료됨', style: TextStyle(fontSize: 11)),
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                            ],
-                          ),
-                          const Divider(height: 16),
-                          Row(
-                            children: [
-                              // Team A
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF1E3A5F) : Colors.blue.shade50,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: isDark ? Colors.blue.shade700 : Colors.blue.shade200,
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Team A',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark ? Colors.blue.shade300 : Colors.blue.shade800,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      ...game.teamA.map((p) => Padding(
-                                            padding: const EdgeInsets.only(bottom: 3),
-                                            child: Text(
-                                              '${p.name} (${p.tier})',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
-                                                color: isDark ? Colors.white : Colors.black87,
-                                              ),
-                                            ),
-                                          )),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 10),
-                                child: Text(
-                                  'VS',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                                  ),
-                                ),
-                              ),
-                              // Team B
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF4C1D4F) : Colors.pink.shade50,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: isDark ? Colors.pink.shade700 : Colors.pink.shade200,
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Team B',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark ? Colors.pink.shade300 : Colors.pink.shade800,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      ...game.teamB.map((p) => Padding(
-                                            padding: const EdgeInsets.only(bottom: 3),
-                                            child: Text(
-                                              '${p.name} (${p.tier})',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
-                                                color: isDark ? Colors.white : Colors.black87,
-                                              ),
-                                            ),
-                                          )),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
+                  if (game.courtType == 'lesson' || game.isLesson) {
+                    return _buildLessonCourtCard(context, game, appState, isDark);
+                  }
+                  return _buildRegularGameCard(context, game, appState, isDark);
                 },
               ),
 
@@ -478,6 +328,384 @@ class MatchTab extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  // 일반 복식 경기 카드 (1~3코트 또는 레슨 모드 미사용 시)
+  Widget _buildRegularGameCard(BuildContext context, GameMatch game, AppState appState, bool isDark) {
+    final isFinished = game.status == 'finished';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 1.5,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isFinished ? Colors.grey.shade300 : Colors.blue.shade300,
+          width: 1.2,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade700,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '제 ${game.courtNumber} 코트',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '시작: ${game.startTime}',
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                    ),
+                  ],
+                ),
+                if (!isFinished)
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.green.shade700,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.check_circle_outline, size: 18),
+                    label: const Text('경기 종료'),
+                    onPressed: () {
+                      appState.finishGame(game.courtNumber);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('제 ${game.courtNumber} 코트 경기가 종료되어 경기 횟수가 반영되었습니다.')),
+                      );
+                    },
+                  )
+                else
+                  const Chip(
+                    label: Text('종료됨', style: TextStyle(fontSize: 11)),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
+            const Divider(height: 16),
+            Row(
+              children: [
+                // Team A
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E3A5F) : Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isDark ? Colors.blue.shade700 : Colors.blue.shade200,
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Team A',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.blue.shade300 : Colors.blue.shade800,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        ...game.teamA.map((p) => Padding(
+                              padding: const EdgeInsets.only(bottom: 3),
+                              child: Text(
+                                '${p.name} (${p.tier})',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                            )),
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    'VS',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+                // Team B
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF4C1D4F) : Colors.pink.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isDark ? Colors.pink.shade700 : Colors.pink.shade200,
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Team B',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.pink.shade300 : Colors.pink.shade800,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        ...game.teamB.map((p) => Padding(
+                              padding: const EdgeInsets.only(bottom: 3),
+                              child: Text(
+                                '${p.name} (${p.tier})',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                            )),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 레슨 전용 코트 카드 (제 4코트 레슨 모드 활성화 시) - 레슨자 이름 및 레슨 대기자 명단만 표시
+  Widget _buildLessonCourtCard(BuildContext context, GameMatch game, AppState appState, bool isDark) {
+    final isFinished = game.status == 'finished';
+    final waitingMembers = appState.waitingLessonMembers;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isFinished ? Colors.grey.shade400 : (isDark ? Colors.amber.shade700 : Colors.amber.shade600),
+          width: 1.5,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 헤더: 레슨 코트 배지 & 지도 코치명
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade800,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '제 ${game.courtNumber} 코트 (레슨)',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.grey.shade800 : Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.amber.shade700),
+                      ),
+                      child: Text(
+                        '지도: ${game.lessonCoach.isNotEmpty ? game.lessonCoach : "코치님"}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (!isFinished)
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.green.shade700,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.check_circle_outline, size: 18),
+                    label: const Text('레슨 완료'),
+                    onPressed: () {
+                      appState.finishGame(game.courtNumber);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('제 ${game.courtNumber} 코트 레슨이 완료 처리되었습니다.')),
+                      );
+                    },
+                  )
+                else
+                  const Chip(
+                    label: Text('레슨 완료됨', style: TextStyle(fontSize: 11)),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
+            const Divider(height: 16),
+
+            // 현재 레슨 참여자 (Active)
+            Row(
+              children: [
+                Icon(Icons.sports_tennis, size: 16, color: isDark ? Colors.purple.shade300 : Colors.purple.shade700),
+                const SizedBox(width: 6),
+                Text(
+                  '현재 레슨 참여자 (${game.lessonStudents.length}명)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: isDark ? Colors.purple.shade300 : Colors.purple.shade800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (game.lessonStudents.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '현재 레슨 중인 회원이 없습니다.\n[회원 관리] 탭에서 회원의 상태를 [레슨 진행]으로 지정해주세요.',
+                  style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, height: 1.4),
+                ),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: game.lessonStudents.map<Widget>((s) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF581C87) : Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: isDark ? Colors.purple.shade600 : Colors.purple.shade300),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircleAvatar(
+                          radius: 10,
+                          backgroundColor: _getTierColor(s.tier),
+                          child: Text(s.tier, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          s.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+
+            // 다음 레슨 대기 명단 (Waiting)
+            Row(
+              children: [
+                Icon(Icons.hourglass_top, size: 14, color: isDark ? Colors.amber.shade300 : Colors.amber.shade800),
+                const SizedBox(width: 6),
+                Text(
+                  '다음 레슨 대기 명단 (${waitingMembers.length}명)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            if (waitingMembers.isEmpty)
+              Text('대기 중인 레슨 신청자가 없습니다.', style: TextStyle(fontSize: 11, color: Colors.grey.shade500))
+            else
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: List.generate(waitingMembers.length, (idx) {
+                  final wm = waitingMembers[idx];
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF78350F) : Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: isDark ? Colors.amber.shade700 : Colors.amber.shade300),
+                    ),
+                    child: Text(
+                      '대기 ${idx + 1}번: ${wm.name} (${wm.tier})',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
+                      ),
+                    ),
+                  );
+                }),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getTierColor(String tier) {
+    switch (tier.toUpperCase()) {
+      case 'S':
+        return Colors.purple.shade600;
+      case 'A':
+        return Colors.red.shade500;
+      case 'B':
+        return Colors.orange.shade600;
+      case 'C':
+        return Colors.blue.shade600;
+      case 'D':
+        return Colors.teal.shade600;
+      case 'E':
+      case '초심':
+      default:
+        return Colors.green.shade600;
+    }
   }
 }
 

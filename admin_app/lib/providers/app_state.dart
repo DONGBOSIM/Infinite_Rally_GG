@@ -50,7 +50,24 @@ class AppState extends ChangeNotifier {
   int get presentCount => _members.where((m) => m.isPresent).length;
   List<Member> get todayAttendees => _members.where((m) => m.isPresent).toList();
   int get submittedShuttleCount => _members.where((m) => m.isPresent && m.hasSubmittedShuttle).length;
-  int get lessonCount => _members.where((m) => m.isPresent && m.isLesson).length;
+  int get lessonCount => _members.where((m) => m.isPresent && m.isLessonAny).length;
+  int get activeLessonCount => _members.where((m) => m.isPresent && m.lessonStatus == 'active').length;
+  int get waitingLessonCount => _members.where((m) => m.isPresent && m.lessonStatus == 'waiting').length;
+  int get matchEligibleCount => _members.where((m) => m.isPresent && m.hasSubmittedShuttle && m.lessonStatus == 'none').length;
+  List<Member> get activeLessonMembers => _members.where((m) => m.isPresent && m.lessonStatus == 'active').toList();
+  List<Member> get waitingLessonMembers => _members.where((m) => m.isPresent && m.lessonStatus == 'waiting').toList();
+
+  void _syncLessonQueue() {
+    _lessonQueue = _members
+        .where((m) => m.isPresent && m.lessonStatus == 'waiting')
+        .map((m) => {
+              'id': m.id,
+              'name': m.name,
+              'tier': m.tier,
+              'gender': m.gender,
+            })
+        .toList();
+  }
 
   // 테마 모드 순환 (시스템 모드 -> 라이트 모드 -> 다크 모드 -> 시스템 모드)
   String cycleTheme() {
@@ -140,7 +157,7 @@ class AppState extends ChangeNotifier {
             _members[idx].isPresent = remoteM.isPresent;
             _members[idx].matchCountToday = remoteM.matchCountToday;
             _members[idx].hasSubmittedShuttle = remoteM.hasSubmittedShuttle;
-            _members[idx].isLesson = remoteM.isLesson;
+            _members[idx].lessonStatus = remoteM.lessonStatus;
             _members[idx].fixedPartnerId = remoteM.fixedPartnerId;
           } else {
             _members.add(remoteM);
@@ -157,11 +174,17 @@ class AppState extends ChangeNotifier {
     final index = _members.indexWhere((m) => m.id == memberId);
     if (index != -1) {
       _members[index].isPresent = !_members[index].isPresent;
+      if (!_members[index].isPresent) {
+        // 불참 처리 시 콕 제출 및 레슨 상태도 초기화
+        _members[index].hasSubmittedShuttle = false;
+        _members[index].lessonStatus = 'none';
+      }
+      _syncLessonQueue();
       notifyListeners();
     }
   }
 
-  // 콕 제출(출석 확정) 토글
+  // 콕 제출(출석 확정) 토글 - 누른 회원만 출석자로 게임 매칭 풀에 포함됨
   void toggleShuttleSubmission(String memberId) {
     final index = _members.indexWhere((m) => m.id == memberId);
     if (index != -1) {
@@ -174,20 +197,32 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // 레슨 신청 여부 토글
-  void toggleLesson(String memberId) {
+  // 레슨 신청 상태 3단계 순환 (없음 none -> 레슨 대기 waiting -> 레슨 진행 active -> 없음 none)
+  void cycleLessonStatus(String memberId) {
     final index = _members.indexWhere((m) => m.id == memberId);
     if (index != -1) {
-      _members[index].isLesson = !_members[index].isLesson;
+      final current = _members[index].lessonStatus;
+      if (current == 'none') {
+        _members[index].lessonStatus = 'waiting';
+      } else if (current == 'waiting') {
+        _members[index].lessonStatus = 'active';
+      } else {
+        _members[index].lessonStatus = 'none';
+      }
+      _syncLessonQueue();
       notifyListeners();
     }
   }
 
-  // 게스트 간편 수동 추가 (자동 G 접두사 부여 및 출석/콕 제출 기본값 true)
+  // 하위 호환용 toggleLesson
+  void toggleLesson(String memberId) => cycleLessonStatus(memberId);
+
+  // 게스트 간편 수동 추가 (자동 G 접두사 부여 및 당일 참석자로 등록)
   void addGuest({
     required String name,
     required String tier,
     required String gender,
+    bool hasSubmittedShuttle = false,
   }) {
     final cleanName = name.trim();
     if (cleanName.isEmpty) return;
@@ -198,7 +233,7 @@ class AppState extends ChangeNotifier {
       tier: tier,
       gender: gender,
       isPresent: true,
-      hasSubmittedShuttle: true,
+      hasSubmittedShuttle: hasSubmittedShuttle,
       isGuest: true,
     );
     _members.add(newGuest);
@@ -210,17 +245,33 @@ class AppState extends ChangeNotifier {
     required List<String> memberIds,
     required List<String> newGuestNames,
     String defaultGuestTier = 'C',
+    bool defaultSubmitShuttle = false,
   }) {
-    // 1. 기존 회원 참석 처리
+    // 1. 기존 회원 참석 처리 (오늘 참여자로 포함)
     for (final id in memberIds) {
       final idx = _members.indexWhere((m) => m.id == id);
       if (idx != -1) {
         _members[idx].isPresent = true;
+        if (defaultSubmitShuttle) {
+          _members[idx].hasSubmittedShuttle = true;
+        }
       }
     }
 
-    // 2. 신규 게스트 등록
+    // 2. 신규 게스트 등록 (오늘 참여자로 등록)
     for (final gName in newGuestNames) {
+      if (gName.trim().isNotEmpty) {
+        addGuest(
+          name: gName.trim(),
+          tier: defaultGuestTier,
+          gender: 'M',
+          hasSubmittedShuttle: defaultSubmitShuttle,
+        );
+      }
+    }
+
+    notifyListeners();
+  }
       if (gName.trim().isNotEmpty) {
         addGuest(name: gName.trim(), tier: defaultGuestTier, gender: 'M');
       }
@@ -266,11 +317,14 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 자동 공평 매칭 생성
+  // 자동 공평 매칭 생성 (콕 제출 출석자만 매칭, 4코트 레슨 시 레슨자 전용 코트 구성)
   void generateMatches() {
+    _syncLessonQueue();
     final result = MatchingService.generateBalancedMatches(
       members: _members,
       courtCount: _courtCount,
+      isLessonCourtEnabled: _isLessonCourtEnabled,
+      lessonCoach: _lessonCoach,
     );
     _currentGames = result.currentGames;
     _upcomingGames = result.upcomingGames;
@@ -284,16 +338,26 @@ class AppState extends ChangeNotifier {
       final game = _currentGames[gameIndex];
       game.status = 'finished';
 
-      // 참여 선수 4명 경기 수 1 증가
-      final playerIds = [
-        ...game.teamA.map((p) => p.id),
-        ...game.teamB.map((p) => p.id),
-      ];
+      if (game.courtType == 'lesson') {
+        // 레슨 참여자 경기 수 1 증가
+        for (final student in game.lessonStudents) {
+          final mIdx = _members.indexWhere((m) => m.id == student.id);
+          if (mIdx != -1) {
+            _members[mIdx].matchCountToday++;
+          }
+        }
+      } else {
+        // 일반 복식 경기 참여 선수 4명 경기 수 1 증가
+        final playerIds = [
+          ...game.teamA.map((p) => p.id),
+          ...game.teamB.map((p) => p.id),
+        ];
 
-      for (final id in playerIds) {
-        final memberIndex = _members.indexWhere((m) => m.id == id);
-        if (memberIndex != -1) {
-          _members[memberIndex].matchCountToday++;
+        for (final id in playerIds) {
+          final memberIndex = _members.indexWhere((m) => m.id == id);
+          if (memberIndex != -1) {
+            _members[memberIndex].matchCountToday++;
+          }
         }
       }
 
@@ -303,6 +367,7 @@ class AppState extends ChangeNotifier {
 
   // Firestore에 오늘 매칭 데이터 업로드
   Future<bool> uploadToFirestore() async {
+    _syncLessonQueue();
     _isUploading = true;
     _lastUploadMessage = null;
     notifyListeners();

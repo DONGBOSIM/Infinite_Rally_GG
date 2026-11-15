@@ -64,14 +64,14 @@ class OcrService {
           // 1. 기존 회원 목록과 대조 (이름이 해당 라인에 정확히 또는 부분 포함되는지 확인)
           bool foundInMembers = false;
           for (final member in allMembers) {
-            // 이름 검색 (예: "김랠리", "김랠리 참석" 등)
+            if (member.name.trim().isEmpty) continue;
+            // 이름 검색 (예: "김랠리", "1. 김랠리", "김랠리 참석" 등)
             if (lineText.contains(member.name)) {
               if (!matchedMemberIds.contains(member.id)) {
                 matchedMemberIds.add(member.id);
                 matchedList.add(member);
               }
               foundInMembers = true;
-              break;
             }
           }
 
@@ -112,3 +112,4 @@ class OcrService {
     }
   }
 }
+
