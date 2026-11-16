@@ -105,14 +105,39 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                     const SnackBar(content: Text('클라우드에서 최신 회원 명부를 불러왔습니다.')),
                   );
                 }
+              } else if (value == 'bulk_import') {
+                _showBulkImportDialog(context, appState);
+              } else if (value == 'clear_all') {
+                _showClearAllMembersDialog(context, appState);
               }
             },
             itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'bulk_import',
+                child: Row(
+                  children: [
+                    Icon(Icons.table_chart, size: 18, color: Colors.indigo),
+                    SizedBox(width: 8),
+                    Text('시트(엑셀) 회원 일괄 등록'),
+                  ],
+                ),
+              ),
               const PopupMenuItem(value: 'all_present', child: Text('전체 참석 처리')),
               const PopupMenuItem(value: 'all_absent', child: Text('전체 불참 처리')),
               const PopupMenuItem(value: 'reset_matches', child: Text('오늘 경기 횟수 초기화')),
               const PopupMenuDivider(),
               const PopupMenuItem(value: 'reload_members', child: Text('클라우드 회원 명부 새로고침')),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'clear_all',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_forever, size: 18, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('전체 회원 목록 비우기', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
             ],
           )
         ],
@@ -523,6 +548,11 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
               ),
               const SizedBox(width: 8),
               IconButton(
+                icon: const Icon(Icons.table_chart, color: Colors.indigo),
+                tooltip: '시트(엑셀) 일괄 등록',
+                onPressed: () => _showBulkImportDialog(context, appState),
+              ),
+              IconButton(
                 icon: const Icon(Icons.person_add),
                 tooltip: '신규 회원 추가',
                 onPressed: () => _showAddMemberDialog(context),
@@ -560,51 +590,62 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                   ],
                 ),
                 subtitle: Text('급수: ${member.tier}조 | 성별: ${member.gender == 'M' ? "남성" : "여성"}'),
-                trailing: member.isPresent
-                    ? Tooltip(
-                        message: '오늘 참여자로 등록되어 있습니다 (터치 시 목록에서 제외)',
-                        child: InkWell(
-                          onTap: () => appState.toggleAttendance(member.id),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1E3A5F) : Colors.blue.shade50,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    member.isPresent
+                        ? Tooltip(
+                            message: '오늘 참여자로 등록되어 있습니다 (터치 시 목록에서 제외)',
+                            child: InkWell(
+                              onTap: () => appState.toggleAttendance(member.id),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: isDark ? Colors.blue.shade700 : Colors.blue.shade300,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.check, size: 14, color: isDark ? Colors.blue.shade300 : Colors.blue.shade700),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '오늘 참여중',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.blue.shade300 : Colors.blue.shade800,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1E3A5F) : Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: isDark ? Colors.blue.shade700 : Colors.blue.shade300,
                                   ),
                                 ),
-                              ],
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.check, size: 14, color: isDark ? Colors.blue.shade300 : Colors.blue.shade700),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '오늘 참여중',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark ? Colors.blue.shade300 : Colors.blue.shade800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
+                          )
+                        : OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              foregroundColor: isDark ? Colors.blue.shade300 : Colors.indigo.shade800,
+                              side: BorderSide(color: isDark ? Colors.blue.shade700 : Colors.indigo.shade300),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                            icon: const Icon(Icons.person_add_alt, size: 14),
+                            label: const Text('+ 오늘 참여', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            onPressed: () => appState.toggleAttendance(member.id),
                           ),
-                        ),
-                      )
-                    : OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          foregroundColor: isDark ? Colors.blue.shade300 : Colors.indigo.shade800,
-                          side: BorderSide(color: isDark ? Colors.blue.shade700 : Colors.indigo.shade300),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                        ),
-                        icon: const Icon(Icons.person_add_alt, size: 14),
-                        label: const Text('+ 오늘 참여', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        onPressed: () => appState.toggleAttendance(member.id),
-                      ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: Icon(Icons.delete_outline, size: 20, color: Colors.red.shade300),
+                      tooltip: '회원 삭제',
+                      onPressed: () => _confirmDeleteMember(context, appState, member),
+                    ),
+                  ],
+                ),
               );
             },
           ),
@@ -1108,5 +1149,250 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
       default:
         return Colors.green.shade600;
     }
+  }
+
+  // 개별 회원 삭제 확인 다이얼로그
+  void _confirmDeleteMember(BuildContext context, AppState appState, Member member) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('회원 삭제'),
+        content: Text('정말 \'${member.displayName}\' 회원을 명부에서 완전히 삭제하시겠습니까?\n삭제 후 클라우드에 자동 반영됩니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              appState.removeMember(member.id);
+              await appState.syncAllToCloud();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('\'${member.displayName}\' 회원이 삭제되었습니다.')),
+                );
+              }
+            },
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 전체 회원 목록 비우기 (관리자 패스워드 검증)
+  void _showClearAllMembersDialog(BuildContext context, AppState appState) {
+    final pwdController = TextEditingController();
+    String? errorMessage;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.red),
+              SizedBox(width: 8),
+              Text('전체 회원 목록 비우기'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '⚠️ 주의: 현재 등록된 모든 회원과 당일 세션 데이터가 완전히 삭제됩니다.\n\n실수로 인한 초기화를 방지하기 위해 관리자 확인 암호를 입력해주세요.',
+                style: TextStyle(fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: pwdController,
+                obscureText: true,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: '관리자 암호 입력 (기본: 1234)',
+                  errorText: errorMessage,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock_outline),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('취소'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final input = pwdController.text.trim();
+                // 패스워드 검증 (1234 또는 infinite)
+                if (input != '1234' && input != 'infinite') {
+                  setDialogState(() {
+                    errorMessage = '암호가 일치하지 않습니다. (기본 암호: 1234)';
+                  });
+                  return;
+                }
+
+                Navigator.pop(ctx);
+                appState.clearAllMembers();
+                final ok = await appState.syncAllToCloud();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(ok
+                          ? '회원 목록이 모두 초기화되었으며 클라우드에 반영되었습니다.'
+                          : '초기화는 되었으나 클라우드 동기화 결과를 확인해주세요.'),
+                      backgroundColor: ok ? Colors.green.shade700 : Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: const Text('모두 비우기'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 시트(엑셀/구글 스프레드시트) 회원 일괄 등록 다이얼로그
+  void _showBulkImportDialog(BuildContext context, AppState appState) {
+    final textController = TextEditingController();
+    bool replaceAll = true; // 디폴트는 기존 예제 회원 목록을 완전히 교체하는 것!
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.table_chart, color: Colors.indigo),
+              SizedBox(width: 8),
+              Text('시트(엑셀) 회원 일괄 등록'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '구글 스프레드시트나 엑셀에서 회원 표를 복사(Ctrl+C)하여 아래에 붙여넣으세요.',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: const Text(
+                    '📌 형식: 이름 [탭/쉼표/공백] 급수(S~E) [탭/쉼표/공백] 성별(남/여)\n'
+                    '예시:\n'
+                    '홍길동\tA\t남\n'
+                    '김철수\tB\t남\n'
+                    '이영희\tC\t여',
+                    style: TextStyle(fontSize: 11, color: Colors.black87, fontFamily: 'monospace'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: textController,
+                  maxLines: 8,
+                  decoration: const InputDecoration(
+                    hintText: '여기에 복사한 텍스트를 붙여넣으세요...',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.all(10),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: replaceAll,
+                      onChanged: (val) {
+                        setDialogState(() => replaceAll = val ?? false);
+                      },
+                    ),
+                    const Expanded(
+                      child: Text(
+                        '기존 명부(예제)를 모두 지우고 이 명단으로 전체 교체 (권장)',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.paste, size: 16),
+                    label: const Text('예시 텍스트 채우기', style: TextStyle(fontSize: 12)),
+                    onPressed: () {
+                      setDialogState(() {
+                        textController.text =
+                            '홍길동\tA\t남\n김철수\tB\t남\n이영희\tC\t여\n박지민\tD\t여\n최민턴\tS\t남';
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('취소'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final raw = textController.text.trim();
+                if (raw.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('붙여넣은 텍스트가 없습니다.')),
+                  );
+                  return;
+                }
+
+                final count = appState.importMembersFromText(raw, replaceAll: replaceAll);
+                if (count == 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('인식된 회원이 없습니다. 형식을 확인해주세요.')),
+                  );
+                  return;
+                }
+
+                Navigator.pop(ctx);
+                final ok = await appState.syncAllToCloud();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$count명의 회원이 일괄 등록되었으며 클라우드에 동기화되었습니다!'),
+                      backgroundColor: ok ? Colors.green.shade700 : Colors.orange,
+                    ),
+                  );
+                }
+              },
+              child: const Text('일괄 등록 및 동기화'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

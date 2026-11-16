@@ -352,6 +352,97 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // 전체 회원 명부 초기화 (일괄 삭제)
+  void clearAllMembers() {
+    _members.clear();
+    _currentGames.clear();
+    _upcomingGames.clear();
+    _lessonQueue.clear();
+    notifyListeners();
+  }
+
+  // 시트(엑셀/구글시트 텍스트 복사본 또는 CSV)로부터 회원 일괄 등록
+  int importMembersFromText(String rawText, {bool replaceAll = false}) {
+    final lines = rawText.split('\n');
+    final validTiers = {'S', 'A', 'B', 'C', 'D', 'E'};
+    final newMembers = <Member>[];
+
+    for (var line in lines) {
+      line = line.trim();
+      if (line.isEmpty) continue;
+
+      // 탭(\t), 쉼표(,), 슬래시(/), 파이프(|) 구분자 분리
+      List<String> tokens;
+      if (line.contains('\t')) {
+        tokens = line.split('\t');
+      } else if (line.contains(',')) {
+        tokens = line.split(',');
+      } else if (line.contains('|')) {
+        tokens = line.split('|');
+      } else {
+        tokens = line.split(RegExp(r'\s+'));
+      }
+
+      tokens = tokens.map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+      if (tokens.isEmpty) continue;
+
+      final name = tokens[0];
+      // 헤더 행 자동 감지 및 제외
+      if (name == '이름' || name == '성명' || name.toLowerCase() == 'name') {
+        continue;
+      }
+
+      // 급수 판별
+      String tier = 'C';
+      if (tokens.length >= 2) {
+        final rawTier = tokens[1].toUpperCase().replaceAll('조', '');
+        if (validTiers.contains(rawTier)) {
+          tier = rawTier;
+        } else if (rawTier.contains('초심')) {
+          tier = 'E';
+        }
+      }
+
+      // 성별 판별
+      String gender = 'M';
+      if (tokens.length >= 3) {
+        final rawGender = tokens[2].toUpperCase();
+        if (rawGender == 'F' || rawGender == '여' || rawGender == '여성' || rawGender == 'W') {
+          gender = 'F';
+        }
+      }
+
+      final id = "user_${DateTime.now().microsecondsSinceEpoch}_${newMembers.length + 1}";
+      newMembers.add(Member(
+        id: id,
+        name: name,
+        tier: tier,
+        gender: gender,
+        isPresent: false,
+        matchCountToday: 0,
+      ));
+    }
+
+    if (newMembers.isEmpty) return 0;
+
+    if (replaceAll) {
+      _members = newMembers;
+      _currentGames.clear();
+      _upcomingGames.clear();
+      _lessonQueue.clear();
+    } else {
+      // 기존 명단 유지하고 중복되지 않은 이름만 추가
+      for (final m in newMembers) {
+        if (!_members.any((existing) => existing.name == m.name)) {
+          _members.add(m);
+        }
+      }
+    }
+
+    notifyListeners();
+    return newMembers.length;
+  }
+
   // 경기 수 초기화
   void resetMatchCounts() {
     for (final member in _members) {
