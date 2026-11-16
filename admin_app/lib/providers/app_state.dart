@@ -26,9 +26,11 @@ class AppState extends ChangeNotifier {
   List<Map<String, dynamic>> _lessonQueue = [];
   StreamSubscription<DailySession?>? _sessionSubscription;
   bool _isRemoteSyncActive = false;
+  bool _isLoadingMasterMembers = false;
 
   AppState() {
     _initSampleMembers();
+    loadMasterMembers();
     initRealtimeSync();
   }
 
@@ -43,6 +45,7 @@ class AppState extends ChangeNotifier {
   String? get lastUploadMessage => _lastUploadMessage;
   ThemeMode get themeMode => _themeMode;
   bool get isLessonCourtEnabled => _isLessonCourtEnabled;
+  bool get isLoadingMasterMembers => _isLoadingMasterMembers;
   String get lessonCoach => _lessonCoach;
   List<Map<String, dynamic>> get lessonQueue => _lessonQueue;
   bool get isRemoteSyncActive => _isRemoteSyncActive;
@@ -405,8 +408,47 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // Firestore에 오늘 매칭 데이터 업로드
-  Future<bool> uploadToFirestore() async {
+  // 영구 마스터 회원 명부 로드 (0원 무과금 최적화: 읽기 1회)
+  Future<void> loadMasterMembers() async {
+    if (!_firestoreService.isFirebaseAvailable) return;
+    _isLoadingMasterMembers = true;
+    notifyListeners();
+
+    try {
+      final remoteList = await _firestoreService.fetchMasterMembers();
+      if (remoteList != null && remoteList.isNotEmpty) {
+        // 원격 마스터 명단으로 교체하되, 현재 메모리의 출석/경기 수 상태가 있다면 보존
+        final merged = <Member>[];
+        for (final remoteM in remoteList) {
+          final localIdx = _members.indexWhere((m) => m.id == remoteM.id);
+          if (localIdx != -1) {
+            remoteM.isPresent = _members[localIdx].isPresent;
+            remoteM.hasSubmittedShuttle = _members[localIdx].hasSubmittedShuttle;
+            remoteM.matchCountToday = _members[localIdx].matchCountToday;
+            remoteM.lessonStatus = _members[localIdx].lessonStatus;
+            remoteM.fixedPartnerId = _members[localIdx].fixedPartnerId;
+          }
+          merged.add(remoteM);
+        }
+        // 당일 등록된 게스트가 있다면 보존
+        for (final localM in _members) {
+          if (localM.isGuest && !merged.any((m) => m.id == localM.id)) {
+            merged.add(localM);
+          }
+        }
+        _members = merged;
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('loadMasterMembers Error: $e');
+    } finally {
+      _isLoadingMasterMembers = false;
+      notifyListeners();
+    }
+  }
+
+  // Firestore에 오늘 매칭 데이터 및 영구 마스터 회원 명부 원스톱 업로드 (0원 무과금 최적화: 쓰기 각 1회)
+  Future<bool> syncAllToCloud() async {
     _syncLessonQueue();
     _isUploading = true;
     _lastUploadMessage = null;
@@ -436,13 +478,24 @@ class AppState extends ChangeNotifier {
       members: _members,
     );
 
-    final success = await _firestoreService.uploadDailySession(session);
+    // 당일 세션과 영구 마스터 회원 명부를 원스톱으로 저장
+    final sessionSuccess = await _firestoreService.uploadDailySession(session);
+    final masterSuccess = await _firestoreService.saveMasterMembers(_members);
+
+    final success = sessionSuccess && masterSuccess;
     _isUploading = false;
-    _lastUploadMessage = success ? "성공적으로 DB에 업로드되었습니다!" : "업로드 실패: 네트워크 또는 Firebase 설정을 확인해주세요.";
+    _lastUploadMessage = success
+        ? "회원 명부 및 경기 매칭이 클라우드에 성공적으로 동기화되었습니다!"
+        : (sessionSuccess
+            ? "세션은 동기화되었으나 회원 명부 저장을 확인해주세요."
+            : "업로드 실패: 네트워크 또는 Firebase 설정을 확인해주세요.");
     notifyListeners();
 
     return success;
   }
+
+  // 하위 호환용 uploadToFirestore
+  Future<bool> uploadToFirestore() => syncAllToCloud();
 
   // S, A, B, C, D, E 6단계 급수 샘플 회원 초기화 (50명)
   void _initSampleMembers() {

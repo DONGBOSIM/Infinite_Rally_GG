@@ -118,4 +118,60 @@ class FirestoreService {
       return [];
     }
   }
+
+  /// 전체 정회원 명부(Master Members)를 단일 문서('club_metadata/master_members')에 영구 저장 (0원 무과금 최적화: 쓰기 1회)
+  Future<bool> saveMasterMembers(List<Member> members) async {
+    final db = firestore;
+    if (db == null) return false;
+
+    try {
+      // 게스트(G )는 당일 참석자일 뿐이므로 영구 마스터 명부에는 정회원만 저장
+      final regularMembers = members.where((m) => !m.isGuest).toList();
+      final membersData = regularMembers.map((m) => m.toMap()).toList();
+
+      await db
+          .collection('club_metadata')
+          .doc('master_members')
+          .set({
+            'members': membersData,
+            'totalCount': regularMembers.length,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true))
+          .timeout(const Duration(seconds: 8));
+      return true;
+    } catch (e) {
+      // ignore: avoid_print
+      print('Firestore saveMasterMembers Error: $e');
+      return false;
+    }
+  }
+
+  /// 전체 정회원 명부(Master Members)를 단일 문서에서 1회 조회 (0원 무과금 최적화: 읽기 1회)
+  Future<List<Member>?> fetchMasterMembers() async {
+    final db = firestore;
+    if (db == null) return null;
+
+    try {
+      final doc = await db
+          .collection('club_metadata')
+          .doc('master_members')
+          .get()
+          .timeout(const Duration(seconds: 8));
+
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        final rawList = data['members'] as List<dynamic>?;
+        if (rawList != null) {
+          return rawList
+              .map((item) => Member.fromMap(Map<String, dynamic>.from(item as Map)))
+              .toList();
+        }
+      }
+      return null;
+    } catch (e) {
+      // ignore: avoid_print
+      print('Firestore fetchMasterMembers Error: $e');
+      return null;
+    }
+  }
 }

@@ -44,6 +44,35 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
         title: const Text('회원 및 출석 관리'),
         elevation: 1,
         actions: [
+          // 원클릭 클라우드 DB 동기화 버튼 (회원 명부 & 당일 출석)
+          if (appState.isUploading)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.cloud_upload_outlined),
+              tooltip: '클라우드 DB 동기화 (회원 명부 & 출석)',
+              onPressed: () async {
+                final ok = await appState.syncAllToCloud();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(appState.lastUploadMessage ?? ''),
+                      backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade700,
+                    ),
+                  );
+                }
+              },
+            ),
           // 테마 전환 버튼 (시스템 -> 라이트 -> 다크 3단계 순환)
           IconButton(
             icon: Icon(
@@ -62,19 +91,28 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
-            onSelected: (value) {
+            onSelected: (value) async {
               if (value == 'all_present') {
                 appState.setAllAttendance(true);
               } else if (value == 'all_absent') {
                 appState.setAllAttendance(false);
               } else if (value == 'reset_matches') {
                 appState.resetMatchCounts();
+              } else if (value == 'reload_members') {
+                await appState.loadMasterMembers();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('클라우드에서 최신 회원 명부를 불러왔습니다.')),
+                  );
+                }
               }
             },
             itemBuilder: (context) => [
               const PopupMenuItem(value: 'all_present', child: Text('전체 참석 처리')),
               const PopupMenuItem(value: 'all_absent', child: Text('전체 불참 처리')),
               const PopupMenuItem(value: 'reset_matches', child: Text('오늘 경기 횟수 초기화')),
+              const PopupMenuDivider(),
+              const PopupMenuItem(value: 'reload_members', child: Text('클라우드 회원 명부 새로고침')),
             ],
           )
         ],
