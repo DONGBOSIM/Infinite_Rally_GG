@@ -23,7 +23,7 @@ class DailySession {
     required this.notice,
     required this.updatedAt,
     this.isLessonCourtEnabled = true,
-    this.lessonCoach = '코치님',
+    this.lessonCoach = '무한랠리도우미',
     this.lessonQueue = const [],
     this.members = const [],
   });
@@ -96,7 +96,7 @@ class DailySession {
       notice: map['notice'] ?? '',
       updatedAt: parseUpdated(map['updatedAt']),
       isLessonCourtEnabled: map['isLessonCourtEnabled'] ?? true,
-      lessonCoach: map['lessonCoach'] ?? '코치님',
+      lessonCoach: (map['lessonCoach'] == null || map['lessonCoach'] == '코치님') ? '무한랠리도우미' : map['lessonCoach'],
       lessonQueue: parseLessonQueue(map['lessonQueue']),
       members: parseMembers(map['members']),
     );

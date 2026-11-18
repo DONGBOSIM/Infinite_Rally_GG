@@ -975,7 +975,7 @@
 
     <!-- 푸터 -->
     <footer class="footer-info">
-      <div class="footer-quote">✨ 무한랠리 배드민턴 동호회 ✨</div>
+      <div class="footer-quote">✨ 무한랠리 배드민턴 팀 ✨</div>
       <p>본 전광판은 관리자 앱과 1초 이내로 실시간 자동 연동됩니다 (새로고침 불필요).</p>
       <p style="margin-top: 4px; font-size: 0.72rem; color: var(--text-sub);">Hosted on Firebase Hosting (0-Cost Serverless)</p>
       <p style="margin-top: 6px; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); letter-spacing: 0.5px;">Built by 네로탱구</p>
@@ -1161,7 +1161,7 @@
           try {
             await navigator.share({
               title: '🏸 무한랠리 실시간 매칭표',
-              text: '무한랠리 배드민턴 동호회 실시간 경기 매칭표입니다.',
+              text: '무한랠리 배드민턴 팀 실시간 경기 매칭표입니다.',
               url: currentUrl
             });
           } catch (e) {
@@ -1280,7 +1280,7 @@
                     ${isMyLessonActive ? '<span class="my-badge-pill" style="background: var(--accent-purple);">내 레슨 🎾</span>' : ''}
                     ${isMyLessonWaiting ? '<span class="my-badge-pill" style="background: var(--accent-amber);">레슨 대기 ⏳</span>' : ''}
                   </div>
-                  <span class="coach-badge">지도: ${game.lessonCoach || data.lessonCoach || '코치님'} 🏸</span>
+                  <span class="coach-badge">지도: ${(game.lessonCoach && game.lessonCoach !== '코치님') ? game.lessonCoach : (data.lessonCoach && data.lessonCoach !== '코치님' ? data.lessonCoach : '무한랠리도우미')} 🏸</span>
                 </div>
                 <div class="court-body">
                   <div class="lesson-students-section">
@@ -1521,9 +1521,9 @@
       document.getElementById('liveStatusText').textContent = "데모 모드";
 
       const demoData = {
-        title: "무한랠리 배드민턴 동호회 (데모)",
+        title: "무한랠리 배드민턴 팀 (데모)",
         notice: "코트 배정 후 3분 이내에 코트에 입장해 주세요! 부상 없이 즐겁게 플레이합시다.",
-        lessonCoach: "김코치님",
+        lessonCoach: "무한랠리도우미",
         lessonQueue: [
           { name: "최헤어핀", tier: "B" },
           { name: "송푸시", tier: "C" }
@@ -1580,7 +1580,7 @@
             status: "in_progress",
             courtType: "lesson",
             isLesson: true,
-            lessonCoach: "김코치님",
+            lessonCoach: "무한랠리도우미",
             lessonStudents: [
               { name: "신앤드", tier: "E" },
               { name: "한콕", tier: "C" }

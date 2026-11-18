@@ -22,7 +22,7 @@ class AppState extends ChangeNotifier {
   // Phase 1 확장: 테마 모드 & 레슨 코트 & 다중 관리자 동기화
   ThemeMode _themeMode = ThemeMode.system;
   bool _isLessonCourtEnabled = true; // 4코트 레슨 모드 활성화 여부
-  String _lessonCoach = "코치님";
+  String _lessonCoach = "무한랠리도우미";
   List<Map<String, dynamic>> _lessonQueue = [];
   StreamSubscription<DailySession?>? _sessionSubscription;
   bool _isRemoteSyncActive = false;
@@ -228,7 +228,7 @@ class AppState extends ChangeNotifier {
       _syncWaitingQueueFromRemote(session.upcomingGames);
       _notice = session.notice;
       _isLessonCourtEnabled = session.isLessonCourtEnabled;
-      _lessonCoach = session.lessonCoach;
+      _lessonCoach = (session.lessonCoach == '코치님' || session.lessonCoach.isEmpty) ? '무한랠리도우미' : session.lessonCoach;
       _lessonQueue = session.lessonQueue;
 
       // 원격에 회원 목록이 있으면 로컬 회원 출석/경기 수 상태 동기화

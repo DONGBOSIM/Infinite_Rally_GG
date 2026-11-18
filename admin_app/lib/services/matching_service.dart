@@ -22,7 +22,7 @@ class MatchingService {
     required List<Member> members,
     required int courtCount,
     bool isLessonCourtEnabled = false,
-    String lessonCoach = '코치님',
+    String lessonCoach = '무한랠리도우미',
   }) {
     final nowStr = DateFormat('HH:mm').format(DateTime.now());
     final List<GameMatch> currentGames = [];
@@ -43,7 +43,7 @@ class MatchingService {
         courtNumber: 4,
         gameId: 'lesson_${_uuid.v4().substring(0, 8)}',
         courtType: 'lesson',
-        lessonCoach: lessonCoach.isNotEmpty ? lessonCoach : '코치님',
+        lessonCoach: (lessonCoach.isNotEmpty && lessonCoach != '코치님') ? lessonCoach : '무한랠리도우미',
         lessonStudents: activeLessonStudents,
         teamA: [],
         teamB: [],
