@@ -100,6 +100,45 @@ class AppState extends ChangeNotifier {
         .toList();
   }
 
+  void _syncWaitingQueueFromRemote(List<Map<String, dynamic>> remoteList) {
+    _waitingQueue.clear();
+    for (final map in remoteList) {
+      final teamAPlayers = (map['teamAPlayers'] as List?)?.map((p) => Member.fromMap(Map<String, dynamic>.from(p))).toList() ?? [];
+      final teamBPlayers = (map['teamBPlayers'] as List?)?.map((p) => Member.fromMap(Map<String, dynamic>.from(p))).toList() ?? [];
+
+      if (teamAPlayers.isEmpty && map['teamA'] is List) {
+        for (final nameStr in map['teamA']) {
+          final cleanName = nameStr.toString().split(' ')[0];
+          final m = _members.firstWhere(
+            (mem) => mem.name == cleanName,
+            orElse: () => Member(id: 'guest_${cleanName.hashCode}', name: cleanName, tier: 'C', gender: 'M'),
+          );
+          teamAPlayers.add(m);
+        }
+      }
+      if (teamBPlayers.isEmpty && map['teamB'] is List) {
+        for (final nameStr in map['teamB']) {
+          final cleanName = nameStr.toString().split(' ')[0];
+          final m = _members.firstWhere(
+            (mem) => mem.name == cleanName,
+            orElse: () => Member(id: 'guest_${cleanName.hashCode}', name: cleanName, tier: 'C', gender: 'M'),
+          );
+          teamBPlayers.add(m);
+        }
+      }
+
+      _waitingQueue.add(GameMatch(
+        courtNumber: 0,
+        gameId: map['id'] ?? map['gameId'] ?? 'wait_${_waitingQueue.length}',
+        teamA: teamAPlayers,
+        teamB: teamBPlayers,
+        status: 'waiting',
+        startTime: '',
+        isFixedPair: map['isFixedPair'] ?? false,
+      ));
+    }
+  }
+
   // 테마 모드 순환 (시스템 모드 -> 라이트 모드 -> 다크 모드 -> 시스템 모드)
   String cycleTheme() {
     if (_themeMode == ThemeMode.system) {
@@ -177,7 +216,7 @@ class AppState extends ChangeNotifier {
 
       _isRemoteSyncActive = true;
       _currentGames = session.currentGames;
-      _upcomingGames = session.upcomingGames;
+      _syncWaitingQueueFromRemote(session.upcomingGames);
       _notice = session.notice;
       _isLessonCourtEnabled = session.isLessonCourtEnabled;
       _lessonCoach = session.lessonCoach;
@@ -390,7 +429,7 @@ class AppState extends ChangeNotifier {
   void clearAllMembers() {
     _members.clear();
     _currentGames.clear();
-    _upcomingGames.clear();
+    _waitingQueue.clear();
     _lessonQueue.clear();
     notifyListeners();
   }
@@ -462,7 +501,7 @@ class AppState extends ChangeNotifier {
     if (replaceAll) {
       _members = newMembers;
       _currentGames.clear();
-      _upcomingGames.clear();
+      _waitingQueue.clear();
       _lessonQueue.clear();
     } else {
       // 기존 명단 유지하고 중복되지 않은 이름만 추가
@@ -722,7 +761,7 @@ class AppState extends ChangeNotifier {
       title: "무한랠리 ${DateFormat('M월 d일').format(DateTime.now())} 정기모임",
       activeCourts: activeCourts,
       currentGames: _currentGames,
-      upcomingGames: _upcomingGames,
+      upcomingGames: upcomingGames,
       notice: _notice,
       updatedAt: DateTime.now(),
       isLessonCourtEnabled: _isLessonCourtEnabled,

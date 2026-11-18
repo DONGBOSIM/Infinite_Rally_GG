@@ -185,6 +185,22 @@ void main() {
       final game = result.currentGames.first;
       expect(game.balanceDifference, 0);
     });
+
+    test('대기열 전용 매칭 생성 시 4인 그룹이 대기 상태(waiting)의 매칭으로 정상 반환된다', () {
+      final members = [
+        Member(id: '1', name: '선수1', tier: 'A', gender: 'M', isPresent: true, hasSubmittedShuttle: true),
+        Member(id: '2', name: '선수2', tier: 'B', gender: 'M', isPresent: true, hasSubmittedShuttle: true),
+        Member(id: '3', name: '선수3', tier: 'C', gender: 'M', isPresent: true, hasSubmittedShuttle: true),
+        Member(id: '4', name: '선수4', tier: 'D', gender: 'M', isPresent: true, hasSubmittedShuttle: true),
+      ];
+
+      final matches = MatchingService.createBalancedMatchesForQueue(members);
+      expect(matches.length, 1);
+      expect(matches.first.status, 'waiting');
+      expect(matches.first.courtNumber, 0);
+      expect(matches.first.teamA.length, 2);
+      expect(matches.first.teamB.length, 2);
+    });
   });
 }
 
