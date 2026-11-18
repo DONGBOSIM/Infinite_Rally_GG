@@ -104,6 +104,33 @@ class MatchingService {
     );
   }
 
+  /// 대기 중인 가용 회원들을 대상으로 공평 복식 매칭들을 생성하여 반환 (대기열 전용 생성 함수)
+  static List<GameMatch> createBalancedMatchesForQueue(List<Member> availableMembers) {
+    if (availableMembers.length < 4) return [];
+    final nowStr = DateFormat('HH:mm').format(DateTime.now());
+    final groups = _assembleFourPlayerGroups(availableMembers);
+    final List<GameMatch> matches = [];
+
+    for (final group in groups) {
+      final balancedTeams = _findBestDoublesPairing(group);
+      final hasFixedPair = group.any((m) =>
+          m.fixedPartnerId != null &&
+          group.any((other) => other.id == m.fixedPartnerId && other.id != m.id));
+
+      matches.add(GameMatch(
+        courtNumber: 0, // 대기열이므로 코트 미배정
+        gameId: _uuid.v4().substring(0, 8),
+        teamA: balancedTeams.$1,
+        teamB: balancedTeams.$2,
+        status: 'waiting',
+        startTime: nowStr,
+        isFixedPair: hasFixedPair,
+      ));
+    }
+
+    return matches;
+  }
+
   /// 고정 페어(파트너)를 묶고 경기 수 기반으로 4인 매칭 그룹 구성
   static List<List<Member>> _assembleFourPlayerGroups(List<Member> eligible) {
     final random = Random();

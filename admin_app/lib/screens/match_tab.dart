@@ -15,7 +15,6 @@ class MatchTab extends StatelessWidget {
     final appState = context.watch<AppState>();
     final currentGames = appState.currentGames;
     final upcomingGames = appState.upcomingGames;
-
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -44,15 +43,16 @@ class MatchTab extends StatelessWidget {
             icon: const Icon(Icons.volume_up),
             tooltip: '전체 코트 순차 호명 📢',
             onPressed: () {
-              if (currentGames.isEmpty) {
+              final activeGames = currentGames.where((g) => g.status == 'in_progress').toList();
+              if (activeGames.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('현재 진행 중인 경기가 없습니다.')),
+                  const SnackBar(content: Text('현재 게임 진행 중인 코트가 없습니다.')),
                 );
                 return;
               }
-              _ttsService.speakAllCourts(currentGames);
+              _ttsService.speakAllCourts(activeGames);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('전체 코트를 순서대로 호명합니다 📢')),
+                const SnackBar(content: Text('진행 중인 코트를 순서대로 호명합니다 📢')),
               );
             },
           ),
@@ -148,21 +148,26 @@ class MatchTab extends StatelessWidget {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
                             icon: const Icon(Icons.auto_awesome),
-                            label: const Text('공평 자동 매칭 생성', style: TextStyle(fontWeight: FontWeight.bold)),
+                            label: Text(
+                              '공평 자동 매칭 대기열 추가 (대기 가능: ${appState.availableMembersForQueue.length}명)',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
                             onPressed: () {
-                              if (appState.matchEligibleCount < 4 &&
-                                  !(appState.isLessonCourtEnabled && appState.activeLessonCount > 0)) {
+                              final count = appState.addAutoMatchesToQueue();
+                              if (count == 0) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('콕을 제출한 경기 참여 회원이 4명 이상이어야 합니다. (현재 콕 제출: ${appState.matchEligibleCount}명)'),
+                                    content: Text('대기 가능한 회원이 4명 이상이어야 합니다. (현재 가용 인원: ${appState.availableMembersForQueue.length}명)'),
                                   ),
                                 );
-                                return;
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('$count개의 공평 매칭이 대기열에 추가되었습니다!'),
+                                    backgroundColor: Colors.green.shade700,
+                                  ),
+                                );
                               }
-                              appState.generateMatches();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('출전 횟수와 급수를 고려한 최적의 매칭이 생성되었습니다.')),
-                              );
                             },
                           ),
                         ),
@@ -175,40 +180,78 @@ class MatchTab extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // 현재 코트별 경기 현황
+            // 현재 코트별 경기 현황 (상태: 게임중... / 게임 종료 / 입장 순으로 제어)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '코트별 경기 현황 (${currentGames.length}개 진행)',
+                  '코트별 현황 (${currentGames.length}개 코트)',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
-                if (currentGames.isNotEmpty)
+                Text(
+                  '대기열: ${upcomingGames.length}팀 대기',
+                  style: TextStyle(
+                    color: upcomingGames.isNotEmpty ? Colors.orange.shade800 : Colors.grey.shade600,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: currentGames.length,
+              itemBuilder: (context, index) {
+                final game = currentGames[index];
+                if (game.courtType == 'lesson' || game.isLesson) {
+                  return _buildLessonCourtCard(context, game, appState, isDark);
+                }
+                return _buildRegularGameCard(context, game, appState, isDark);
+              },
+            ),
+
+            const SizedBox(height: 24),
+
+            // ==========================================
+            // 다음 대기 경기 리스트 (Queue)
+            // ==========================================
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '다음 대기 경기 (${upcomingGames.length}팀 대기 중)',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                if (upcomingGames.isNotEmpty)
                   Text(
-                    '총 출전: ${currentGames.fold<int>(0, (sum, g) => sum + (g.courtType == 'lesson' ? g.lessonStudents.length : (g.teamA.length + g.teamB.length)))}명',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                    '순서대로 코트 입장 ⏳',
+                    style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                   ),
               ],
             ),
             const SizedBox(height: 8),
 
-            if (currentGames.isEmpty)
+            if (upcomingGames.isEmpty)
               Container(
-                padding: const EdgeInsets.all(32),
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300, style: BorderStyle.solid),
                 ),
                 child: Column(
                   children: [
-                    Icon(Icons.sports_tennis, size: 48, color: Colors.grey.shade400),
-                    const SizedBox(height: 8),
-                    const Text('현재 매칭된 경기가 없습니다.'),
+                    Icon(Icons.hourglass_empty, size: 36, color: Colors.grey.shade400),
+                    const SizedBox(height: 6),
+                    const Text('현재 대기 중인 매칭팀이 없습니다.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     const SizedBox(height: 4),
-                    const Text(
-                      '위의 [공평 자동 매칭 생성] 버튼을 눌러주세요.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    Text(
+                      '상단의 [공평 자동 매칭] 또는 아래의 [+ 수동 대기 매칭 추가]를 눌러주세요.',
+                      style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                     ),
                   ],
                 ),
@@ -217,61 +260,136 @@ class MatchTab extends StatelessWidget {
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: currentGames.length,
-                itemBuilder: (context, index) {
-                  final game = currentGames[index];
-                  if (game.courtType == 'lesson' || game.isLesson) {
-                    return _buildLessonCourtCard(context, game, appState, isDark);
-                  }
-                  return _buildRegularGameCard(context, game, appState, isDark);
-                },
-              ),
-
-            const SizedBox(height: 16),
-
-            // 다음 대기 경기 리스트
-            if (upcomingGames.isNotEmpty) ...[
-              Text(
-                '다음 대기 경기 (${upcomingGames.length}팀 대기 중)',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
                 itemCount: upcomingGames.length,
                 itemBuilder: (context, index) {
                   final wait = upcomingGames[index];
+                  final isFirst = index == 0; // 대기 1번 팀
+                  final orderNum = wait['order'] ?? (index + 1);
+
                   return Card(
-                    color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade50,
+                    color: isFirst
+                        ? (isDark ? const Color(0xFF2E1065) : Colors.amber.shade50)
+                        : (isDark ? const Color(0xFF1E293B) : Colors.grey.shade50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(
+                        color: isFirst
+                            ? (isDark ? Colors.purple.shade400 : Colors.amber.shade600)
+                            : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                        width: isFirst ? 1.5 : 1,
+                      ),
+                    ),
                     margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      dense: true,
-                      leading: CircleAvatar(
-                        radius: 12,
-                        backgroundColor: isDark ? const Color(0xFF334155) : Colors.grey.shade400,
-                        child: Text('${wait['order']}', style: const TextStyle(fontSize: 11, color: Colors.white)),
-                      ),
-                      title: Text(
-                        '${(wait['teamA'] as List).join(', ')}  VS  ${(wait['teamB'] as List).join(', ')}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                      trailing: Text(
-                        '${wait['designatedCourt']}코트 예정',
-                        style: TextStyle(
-                          color: isDark ? Colors.blue.shade300 : Colors.blue.shade700,
-                          fontSize: 12,
-                        ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundColor: isFirst
+                                ? Colors.amber.shade700
+                                : (isDark ? const Color(0xFF334155) : Colors.grey.shade400),
+                            child: Text(
+                              '$orderNum',
+                              style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    if (isFirst) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber.shade700,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text('다음 입장 순번 🚀', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    Text(
+                                      '대기 $orderNum번',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: isFirst ? Colors.amber.shade900 : Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  '${(wait['teamA'] as List).join(', ')}  VS  ${(wait['teamB'] as List).join(', ')}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // 순서 위/아래 이동 및 삭제 버튼
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_upward, size: 16),
+                                tooltip: '순서 위로 이동',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                onPressed: index > 0 ? () => appState.moveQueueItem(index, index - 1) : null,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.arrow_downward, size: 16),
+                                tooltip: '순서 아래로 이동',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                onPressed: index < upcomingGames.length - 1 ? () => appState.moveQueueItem(index, index + 1) : null,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                                tooltip: '대기열에서 취소',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                onPressed: () {
+                                  appState.removeQueueItem(index);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('대기 경기 매칭이 취소되었습니다.'), duration: Duration(seconds: 1)),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   );
                 },
               ),
-            ],
+
+            const SizedBox(height: 8),
+
+            // ⭐️ 대기열 가장 아래: [+ 수동 대기 매칭 추가] 버튼 (사용자 요청)
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.indigo,
+                side: const BorderSide(color: Colors.indigo, width: 1.5),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.add_circle_outline),
+              label: const Text(
+                '+ 수동 대기 매칭 추가',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              onPressed: () => _showManualMatchDialog(context, appState),
+            ),
 
             const SizedBox(height: 32),
           ],
@@ -281,7 +399,7 @@ class MatchTab extends StatelessWidget {
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.08),
@@ -322,6 +440,522 @@ class MatchTab extends StatelessWidget {
     );
   }
 
+  // ==========================================
+  // 일반 복식 경기 카드 (게임중... / 게임 종료 / 입장 순으로 제어)
+  // ==========================================
+  Widget _buildRegularGameCard(BuildContext context, GameMatch game, AppState appState, bool isDark) {
+    final isFinished = game.status == 'finished';
+    final isInProgress = game.status == 'in_progress';
+    final isIdle = game.status == 'idle' || (game.teamA.isEmpty && game.teamB.isEmpty);
+    final hasWaitingMatch = appState.waitingQueue.isNotEmpty;
+
+    Color statusBadgeColor;
+    String statusBadgeText;
+    if (isInProgress) {
+      statusBadgeColor = Colors.green.shade600;
+      statusBadgeText = '게임중... 🟢';
+    } else if (isFinished) {
+      statusBadgeColor = Colors.redAccent.shade700;
+      statusBadgeText = '게임 종료 🔴';
+    } else {
+      statusBadgeColor = Colors.grey.shade600;
+      statusBadgeText = '입장 대기 ⏳';
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isInProgress
+              ? (isDark ? Colors.blue.shade400 : Colors.blue.shade600)
+              : (isFinished ? Colors.redAccent.shade200 : Colors.grey.shade400),
+          width: isInProgress ? 1.8 : 1.2,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 카드 상단 헤더 (코트 번호 & 상태 뱃지 & 액션 버튼)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade700,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '제 ${game.courtNumber} 코트',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: statusBadgeColor,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        statusBadgeText,
+                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    if (isInProgress && game.startTime.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '시작: ${game.startTime}',
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                      ),
+                    ],
+                  ],
+                ),
+
+                // ⭐️ 상태에 따른 3단계 액션 버튼 (게임중 -> 게임 종료 -> 입장)
+                Row(
+                  children: [
+                    // 1) 게임중... 상태일 때: [호명 📢] 및 [게임 종료] 버튼
+                    if (isInProgress) ...[
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          foregroundColor: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
+                          side: BorderSide(color: isDark ? Colors.amber.shade700 : Colors.amber.shade400),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                        icon: const Icon(Icons.volume_up, size: 14),
+                        label: const Text('호명 📢', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        onPressed: () => _ttsService.speakCourt(game),
+                      ),
+                      const SizedBox(width: 6),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade700,
+                          foregroundColor: Colors.white,
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                        icon: const Icon(Icons.stop_circle_outlined, size: 15),
+                        label: const Text('게임 종료', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        onPressed: () {
+                          appState.finishGame(game.courtNumber);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('제 ${game.courtNumber} 코트 게임이 종료되었습니다. [입장]을 눌러 다음 팀을 진행하세요.'),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+
+                    // 2) 게임 종료 또는 빈 코트 상태일 때: [입장 (대기 1번)] 버튼
+                    if (isFinished || isIdle) ...[
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: hasWaitingMatch ? Colors.indigo : Colors.grey.shade500,
+                          foregroundColor: Colors.white,
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                        icon: const Icon(Icons.login, size: 15),
+                        label: const Text('입장 🚀', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        onPressed: () {
+                          if (!hasWaitingMatch) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('대기열에 대기 중인 팀이 없습니다. 먼저 매칭을 추가해 주세요.')),
+                            );
+                            return;
+                          }
+                          final success = appState.enterNextMatchToCourt(game.courtNumber);
+                          if (success) {
+                            final newGame = appState.currentGames.firstWhere((g) => g.courtNumber == game.courtNumber);
+                            _ttsService.speakCourt(newGame);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('제 ${game.courtNumber} 코트에 대기 1번 팀이 입장하여 게임이 시작되었습니다!'),
+                                backgroundColor: Colors.green.shade700,
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+
+            const Divider(height: 16),
+
+            // 코트 경기 내용 (선수 대진표)
+            if (isIdle)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                alignment: Alignment.center,
+                child: Text(
+                  hasWaitingMatch ? '코트가 비어있습니다. 우측 상단의 [입장 🚀]을 누르면 대기 1번 팀이 입장합니다.' : '현재 코트가 비어있습니다. 대기열에 매칭을 추가해 주세요.',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+              )
+            else
+              Row(
+                children: [
+                  // Team A
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E3A5F) : Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isDark ? Colors.blue.shade700 : Colors.blue.shade200,
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Team A',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.blue.shade300 : Colors.blue.shade800,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              if (isFinished)
+                                const Text('종료', style: TextStyle(fontSize: 10, color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          ...game.teamA.map((p) => Padding(
+                                padding: const EdgeInsets.only(bottom: 3),
+                                child: Text(
+                                  '${p.name} (${p.tier})',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: isFinished ? TextDecoration.lineThrough : null,
+                                    color: isFinished
+                                        ? Colors.grey
+                                        : (isDark ? Colors.white : Colors.black87),
+                                  ),
+                                ),
+                              )),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
+                      'VS',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isFinished ? Colors.grey : Colors.red.shade400,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+
+                  // Team B
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF4C1D24) : Colors.pink.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isDark ? Colors.pink.shade700 : Colors.pink.shade200,
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Team B',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.pink.shade300 : Colors.pink.shade800,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              if (isFinished)
+                                const Text('종료', style: TextStyle(fontSize: 10, color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          ...game.teamB.map((p) => Padding(
+                                padding: const EdgeInsets.only(bottom: 3),
+                                child: Text(
+                                  '${p.name} (${p.tier})',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: isFinished ? TextDecoration.lineThrough : null,
+                                    color: isFinished
+                                        ? Colors.grey
+                                        : (isDark ? Colors.white : Colors.black87),
+                                  ),
+                                ),
+                              )),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // 제 4코트 레슨 전용 카드 (4코트 레슨 모드 활성화 시)
+  // ==========================================
+  Widget _buildLessonCourtCard(BuildContext context, GameMatch game, AppState appState, bool isDark) {
+    final activeStudents = appState.activeLessonMembers;
+    final waitingStudents = appState.waitingLessonMembers;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isDark ? Colors.amber.shade700 : Colors.amber.shade500,
+          width: 1.5,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade800,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        '제 4 코트 (레슨)',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: activeStudents.isNotEmpty ? Colors.purple.shade600 : Colors.grey.shade600,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        activeStudents.isNotEmpty ? '레슨 진행중 🎾' : '레슨 대기 ⏳',
+                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '지도: ${appState.lessonCoach} 🏸',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 16),
+            const Text('🎾 현재 레슨 참여자:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            const SizedBox(height: 4),
+            if (activeStudents.isEmpty)
+              Text('현재 레슨 진행 중인 인원이 없습니다.', style: TextStyle(color: Colors.grey.shade600, fontSize: 12))
+            else
+              Wrap(
+                spacing: 6,
+                children: activeStudents.map((s) => Chip(
+                      label: Text('${s.name} (${s.tier})', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      backgroundColor: Colors.purple.shade50,
+                      visualDensity: VisualDensity.compact,
+                    )).toList(),
+              ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.hourglass_top, size: 14, color: Colors.orange),
+                const SizedBox(width: 4),
+                Text(
+                  '레슨 대기 순번 (${waitingStudents.length}명 대기):',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.orange),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            if (waitingStudents.isEmpty)
+              Text('레슨 대기자가 없습니다.', style: TextStyle(color: Colors.grey.shade600, fontSize: 12))
+            else
+              Wrap(
+                spacing: 6,
+                children: waitingStudents.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final s = entry.value;
+                  return Chip(
+                    label: Text('${idx + 1}번: ${s.name}', style: const TextStyle(fontSize: 11)),
+                    visualDensity: VisualDensity.compact,
+                  );
+                }).toList(),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // 수동 대기 매칭 추가 다이얼로그
+  // ==========================================
+  void _showManualMatchDialog(BuildContext context, AppState appState) {
+    // 콕 제출한 오늘 참여자 중 선택 가능한 회원 목록
+    final availableCandidates = appState.todayAttendees
+        .where((m) => m.hasSubmittedShuttle && m.lessonStatus == 'none')
+        .toList();
+
+    if (availableCandidates.length < 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('수동 매칭을 위해 콕을 제출한 회원이 최소 4명 이상 필요합니다. (현재 콕 제출: ${availableCandidates.length}명)')),
+      );
+      return;
+    }
+
+    Member? pA1 = availableCandidates.isNotEmpty ? availableCandidates[0] : null;
+    Member? pA2 = availableCandidates.length > 1 ? availableCandidates[1] : null;
+    Member? pB1 = availableCandidates.length > 2 ? availableCandidates[2] : null;
+    Member? pB2 = availableCandidates.length > 3 ? availableCandidates[3] : null;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) {
+          final selectedIds = {pA1?.id, pA2?.id, pB1?.id, pB2?.id}.whereType<String>().toSet();
+          final isComplete = selectedIds.length == 4;
+
+          Widget buildPlayerDropdown(String label, Member? current, ValueChanged<Member?> onChanged) {
+            return DropdownButtonFormField<String>(
+              value: current?.id,
+              decoration: InputDecoration(
+                labelText: label,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              items: availableCandidates.map((m) {
+                final isDuplicate = selectedIds.contains(m.id) && m.id != current?.id;
+                return DropdownMenuItem<String>(
+                  value: m.id,
+                  enabled: !isDuplicate,
+                  child: Text(
+                    '${m.name} (${m.tier}조 / ${m.matchCountToday}경기)${isDuplicate ? ' (선택됨)' : ''}',
+                    style: TextStyle(
+                      color: isDuplicate ? Colors.grey : null,
+                      fontSize: 13,
+                    ),
+                  ),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val == null) return;
+                final found = availableCandidates.firstWhere((m) => m.id == val);
+                onChanged(found);
+              },
+            );
+          }
+
+          return AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.edit_note, color: Colors.indigo),
+                SizedBox(width: 8),
+                Text('수동 대기 매칭 편성', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Team A와 Team B에 출전할 4명의 선수를 지정합니다.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 12),
+                  const Text('Team A (2명):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blue)),
+                  const SizedBox(height: 6),
+                  buildPlayerDropdown('Team A 선수 1', pA1, (m) => setDlgState(() => pA1 = m)),
+                  const SizedBox(height: 8),
+                  buildPlayerDropdown('Team A 선수 2', pA2, (m) => setDlgState(() => pA2 = m)),
+                  const SizedBox(height: 14),
+                  const Text('Team B (2명):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.pink)),
+                  const SizedBox(height: 6),
+                  buildPlayerDropdown('Team B 선수 1', pB1, (m) => setDlgState(() => pB1 = m)),
+                  const SizedBox(height: 8),
+                  buildPlayerDropdown('Team B 선수 2', pB2, (m) => setDlgState(() => pB2 = m)),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.indigo,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: isComplete
+                    ? () {
+                        appState.addManualMatchToQueue(
+                          teamA: [pA1!, pA2!],
+                          teamB: [pB1!, pB2!],
+                        );
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('수동 편성된 매칭이 대기열에 추가되었습니다!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    : null,
+                child: const Text('대기열에 추가'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   void _showNoticeDialog(BuildContext context, AppState appState) {
     final ctrl = TextEditingController(text: appState.notice);
     showDialog(
@@ -349,440 +983,4 @@ class MatchTab extends StatelessWidget {
       ),
     );
   }
-
-  // 일반 복식 경기 카드 (1~3코트 또는 레슨 모드 미사용 시)
-  Widget _buildRegularGameCard(BuildContext context, GameMatch game, AppState appState, bool isDark) {
-    final isFinished = game.status == 'finished';
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 1.5,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isFinished ? Colors.grey.shade300 : Colors.blue.shade300,
-          width: 1.2,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade700,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '제 ${game.courtNumber} 코트',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '시작: ${game.startTime}',
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                    ),
-                    if (game.isFixedPair) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF581C87) : Colors.purple.shade50,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: isDark ? Colors.purple.shade700 : Colors.purple.shade300),
-                        ),
-                        child: Text(
-                          '고정페어',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.purple.shade200 : Colors.purple.shade800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                Row(
-                  children: [
-                    if (!isFinished) ...[
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          foregroundColor: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
-                          side: BorderSide(color: isDark ? Colors.amber.shade700 : Colors.amber.shade400),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                        ),
-                        icon: const Icon(Icons.volume_up, size: 14),
-                        label: const Text('호명 📢', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        onPressed: () => _ttsService.speakCourt(game),
-                      ),
-                      const SizedBox(width: 4),
-                    ],
-                    if (!isFinished)
-                      TextButton.icon(
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.green.shade700,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        icon: const Icon(Icons.check_circle_outline, size: 18),
-                        label: const Text('경기 종료'),
-                        onPressed: () {
-                          appState.finishGame(game.courtNumber);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('제 ${game.courtNumber} 코트 경기가 종료되어 경기 횟수가 반영되었습니다.')),
-                          );
-                        },
-                      )
-                    else
-                      const Chip(
-                        label: Text('종료됨', style: TextStyle(fontSize: 11)),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                  ],
-                ),
-              ],
-            ),
-            const Divider(height: 16),
-            Row(
-              children: [
-                // Team A
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E3A5F) : Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isDark ? Colors.blue.shade700 : Colors.blue.shade200,
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Team A',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.blue.shade300 : Colors.blue.shade800,
-                            fontSize: 11,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        ...game.teamA.map((p) => Padding(
-                              padding: const EdgeInsets.only(bottom: 3),
-                              child: Text(
-                                '${p.name} (${p.tier})',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white : Colors.black87,
-                                ),
-                              ),
-                            )),
-                      ],
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Text(
-                    'VS',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                    ),
-                  ),
-                ),
-                // Team B
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF4C1D4F) : Colors.pink.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isDark ? Colors.pink.shade700 : Colors.pink.shade200,
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Team B',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.pink.shade300 : Colors.pink.shade800,
-                            fontSize: 11,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        ...game.teamB.map((p) => Padding(
-                              padding: const EdgeInsets.only(bottom: 3),
-                              child: Text(
-                                '${p.name} (${p.tier})',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white : Colors.black87,
-                                ),
-                              ),
-                            )),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 레슨 전용 코트 카드 (제 4코트 레슨 모드 활성화 시) - 레슨자 이름 및 레슨 대기자 명단만 표시
-  Widget _buildLessonCourtCard(BuildContext context, GameMatch game, AppState appState, bool isDark) {
-    final isFinished = game.status == 'finished';
-    final waitingMembers = appState.waitingLessonMembers;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isFinished ? Colors.grey.shade400 : (isDark ? Colors.amber.shade700 : Colors.amber.shade600),
-          width: 1.5,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 헤더: 레슨 코트 배지 & 지도 코치명
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade800,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '제 ${game.courtNumber} 코트 (레슨)',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey.shade800 : Colors.amber.shade50,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.amber.shade700),
-                      ),
-                      child: Text(
-                        '지도: ${game.lessonCoach.isNotEmpty ? game.lessonCoach : "코치님"}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    if (!isFinished) ...[
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          foregroundColor: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
-                          side: BorderSide(color: isDark ? Colors.amber.shade700 : Colors.amber.shade400),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                        ),
-                        icon: const Icon(Icons.volume_up, size: 14),
-                        label: const Text('호명 📢', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        onPressed: () => _ttsService.speakCourt(game),
-                      ),
-                      const SizedBox(width: 4),
-                    ],
-                    if (!isFinished)
-                      TextButton.icon(
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.green.shade700,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        icon: const Icon(Icons.check_circle_outline, size: 18),
-                        label: const Text('레슨 완료'),
-                        onPressed: () {
-                          appState.finishGame(game.courtNumber);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('제 ${game.courtNumber} 코트 레슨이 완료 처리되었습니다.')),
-                          );
-                        },
-                      )
-                    else
-                      const Chip(
-                        label: Text('레슨 완료됨', style: TextStyle(fontSize: 11)),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                  ],
-                ),
-              ],
-            ),
-            const Divider(height: 16),
-
-            // 현재 레슨 참여자 (Active)
-            Row(
-              children: [
-                Icon(Icons.sports_tennis, size: 16, color: isDark ? Colors.purple.shade300 : Colors.purple.shade700),
-                const SizedBox(width: 6),
-                Text(
-                  '현재 레슨 참여자 (${game.lessonStudents.length}명)',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: isDark ? Colors.purple.shade300 : Colors.purple.shade800,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (game.lessonStudents.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '현재 레슨 중인 회원이 없습니다.\n[회원 관리] 탭에서 회원의 상태를 [레슨 진행]으로 지정해주세요.',
-                  style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, height: 1.4),
-                ),
-              )
-            else
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: game.lessonStudents.map<Widget>((s) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF581C87) : Colors.purple.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: isDark ? Colors.purple.shade600 : Colors.purple.shade300),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircleAvatar(
-                          radius: 10,
-                          backgroundColor: _getTierColor(s.tier),
-                          child: Text(s.tier, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          s.name,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            const SizedBox(height: 8),
-
-            // 다음 레슨 대기 명단 (Waiting)
-            Row(
-              children: [
-                Icon(Icons.hourglass_top, size: 14, color: isDark ? Colors.amber.shade300 : Colors.amber.shade800),
-                const SizedBox(width: 6),
-                Text(
-                  '다음 레슨 대기 명단 (${waitingMembers.length}명)',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    color: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            if (waitingMembers.isEmpty)
-              Text('대기 중인 레슨 신청자가 없습니다.', style: TextStyle(fontSize: 11, color: Colors.grey.shade500))
-            else
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: List.generate(waitingMembers.length, (idx) {
-                  final wm = waitingMembers[idx];
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF78350F) : Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: isDark ? Colors.amber.shade700 : Colors.amber.shade300),
-                    ),
-                    child: Text(
-                      '대기 ${idx + 1}번: ${wm.name} (${wm.tier})',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
-                      ),
-                    ),
-                  );
-                }),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _getTierColor(String tier) {
-    switch (tier.toUpperCase()) {
-      case 'S':
-        return Colors.purple.shade600;
-      case 'A':
-        return Colors.red.shade500;
-      case 'B':
-        return Colors.orange.shade600;
-      case 'C':
-        return Colors.blue.shade600;
-      case 'D':
-        return Colors.teal.shade600;
-      case 'E':
-      case '초심':
-      default:
-        return Colors.green.shade600;
-    }
-  }
 }
-

@@ -13,7 +13,7 @@ class AppState extends ChangeNotifier {
   List<Member> _members = [];
   int _courtCount = 4;
   List<GameMatch> _currentGames = [];
-  List<Map<String, dynamic>> _upcomingGames = [];
+  final List<GameMatch> _waitingQueue = []; // ⭐️ 대기열 큐 (GameMatch 객체 기반)
   String _notice = "경기 종료 후 셔틀콕은 코트 옆 바구니에 넣어주세요.";
   String _webViewerUrl = "https://infinite-rally-gg.web.app/";
   bool _isUploading = false;
@@ -31,6 +31,7 @@ class AppState extends ChangeNotifier {
   AppState() {
     _initSampleMembers();
     loadMasterMembers();
+    ensureCourtsExist();
     initRealtimeSync();
   }
 
@@ -45,7 +46,27 @@ class AppState extends ChangeNotifier {
 
   int get courtCount => _courtCount;
   List<GameMatch> get currentGames => _currentGames;
-  List<Map<String, dynamic>> get upcomingGames => _upcomingGames;
+
+  // ⭐️ 대기열 큐 Getters (웹 뷰어 및 Firestore 100% 호환 Map 변환)
+  List<Map<String, dynamic>> get upcomingGames {
+    return _waitingQueue.asMap().entries.map((entry) {
+      final idx = entry.key;
+      final match = entry.value;
+      return {
+        'id': match.gameId,
+        'order': idx + 1,
+        'designatedCourt': ((idx) % (_courtCount > 0 ? _courtCount : 1)) + 1,
+        'teamA': match.teamA.map((m) => '${m.name} (${m.tier})').toList(),
+        'teamB': match.teamB.map((m) => '${m.name} (${m.tier})').toList(),
+        'teamAPlayers': match.teamA.map((m) => m.toMap()).toList(),
+        'teamBPlayers': match.teamB.map((m) => m.toMap()).toList(),
+        'isFixedPair': match.isFixedPair,
+      };
+    }).toList();
+  }
+
+  List<GameMatch> get waitingQueue => _waitingQueue;
+  int get waitingQueueCount => _waitingQueue.length;
   String get notice => _notice;
   String get webViewerUrl => _webViewerUrl;
   bool get isUploading => _isUploading;
@@ -116,17 +137,20 @@ class AppState extends ChangeNotifier {
   // 4코트 레슨 모드 토글
   void toggleLessonCourt(bool enabled) {
     _isLessonCourtEnabled = enabled;
+    ensureCourtsExist();
     notifyListeners();
   }
 
   void setLessonCoach(String coachName) {
     _lessonCoach = coachName;
+    ensureCourtsExist();
     notifyListeners();
   }
 
   void setCourtCount(int count) {
     if (count > 0 && count <= 10) {
       _courtCount = count;
+      ensureCourtsExist();
       notifyListeners();
     }
   }
@@ -461,52 +485,178 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 자동 공평 매칭 생성 (콕 제출 출석자만 매칭, 4코트 레슨 시 레슨자 전용 코트 구성)
-  void generateMatches() {
+  // ⭐️ 현재 코트 게임 중이거나 대기열에 있지 않은, 즉시 대기 매칭 가능한 인원 목록
+  List<Member> get availableMembersForQueue {
+    final busyIds = <String>{};
+
+    // 1. 코트에서 게임 진행 중인 인원 (게임중... 상태)
+    for (final game in _currentGames) {
+      if (game.status == 'in_progress') {
+        if (game.courtType == 'lesson') {
+          busyIds.addAll(game.lessonStudents.map((s) => s.id));
+        } else {
+          busyIds.addAll(game.teamA.map((m) => m.id));
+          busyIds.addAll(game.teamB.map((m) => m.id));
+        }
+      }
+    }
+
+    // 2. 대기열에 이미 편성된 인원
+    for (final match in _waitingQueue) {
+      busyIds.addAll(match.teamA.map((m) => m.id));
+      busyIds.addAll(match.teamB.map((m) => m.id));
+    }
+
+    return _members.where((m) =>
+        m.isPresent &&
+        m.hasSubmittedShuttle &&
+        m.lessonStatus == 'none' &&
+        !busyIds.contains(m.id)).toList();
+  }
+
+  // 1~courtCount 코트 슬롯 보장 (비어있는 코트는 idle)
+  void ensureCourtsExist() {
+    final existingNumbers = _currentGames.map((g) => g.courtNumber).toSet();
+    for (int i = 1; i <= _courtCount; i++) {
+      if (!existingNumbers.contains(i)) {
+        final isLesson = _isLessonCourtEnabled && i == 4 && _courtCount >= 4;
+        _currentGames.add(GameMatch(
+          courtNumber: i,
+          gameId: 'idle_$i',
+          teamA: [],
+          teamB: [],
+          status: 'idle',
+          startTime: '',
+          courtType: isLesson ? 'lesson' : 'game',
+          lessonCoach: isLesson ? _lessonCoach : '',
+        ));
+      }
+    }
+    // 레슨 모드 여부 업데이트
+    for (final game in _currentGames) {
+      if (game.courtNumber == 4 && _courtCount >= 4) {
+        if (_isLessonCourtEnabled && game.courtType != 'lesson') {
+          game.courtType = 'lesson';
+          game.lessonCoach = _lessonCoach;
+        } else if (!_isLessonCourtEnabled && game.courtType == 'lesson') {
+          game.courtType = 'game';
+        }
+      }
+    }
+    _currentGames.sort((a, b) => a.courtNumber.compareTo(b.courtNumber));
+    _currentGames.removeWhere((g) => g.courtNumber > _courtCount);
+  }
+
+  // ⭐️ [공평 자동 매칭 생성] -> 코트의 진행 중 게임을 절대 건드리지 않고 '대기열(Queue)'에 추가!
+  int addAutoMatchesToQueue() {
     _syncLessonQueue();
-    final result = MatchingService.generateBalancedMatches(
-      members: _members,
-      courtCount: _courtCount,
-      isLessonCourtEnabled: _isLessonCourtEnabled,
-      lessonCoach: _lessonCoach,
+    final availables = availableMembersForQueue;
+    if (availables.length < 4) return 0;
+
+    final newMatches = MatchingService.createBalancedMatchesForQueue(availables);
+    if (newMatches.isEmpty) return 0;
+
+    _waitingQueue.addAll(newMatches);
+    notifyListeners();
+    return newMatches.length;
+  }
+
+  // 하위 호환용 generateMatches
+  void generateMatches() => addAutoMatchesToQueue();
+
+  // ⭐️ [수동 대기 매칭 추가] -> 관리자가 직접 선택한 4인 팀을 대기열 끝에 등록
+  void addManualMatchToQueue({
+    required List<Member> teamA,
+    required List<Member> teamB,
+  }) {
+    final newMatch = GameMatch(
+      courtNumber: 0,
+      gameId: "manual_${DateTime.now().millisecondsSinceEpoch}",
+      teamA: teamA,
+      teamB: teamB,
+      status: 'waiting',
+      startTime: DateFormat('HH:mm').format(DateTime.now()),
+      isFixedPair: false,
     );
-    _currentGames = result.currentGames;
-    _upcomingGames = result.upcomingGames;
+    _waitingQueue.add(newMatch);
     notifyListeners();
   }
 
-  // 특정 코트 경기 완료 처리 (해당 선수들의 matchCountToday 증가)
+  // 대기열 항목 삭제
+  void removeQueueItem(int index) {
+    if (index >= 0 && index < _waitingQueue.length) {
+      _waitingQueue.removeAt(index);
+      notifyListeners();
+    }
+  }
+
+  // 대기열 항목 순서 변경 (위/아래)
+  void moveQueueItem(int oldIndex, int newIndex) {
+    if (oldIndex < 0 || oldIndex >= _waitingQueue.length) return;
+    if (newIndex < 0 || newIndex >= _waitingQueue.length) return;
+    final item = _waitingQueue.removeAt(oldIndex);
+    _waitingQueue.insert(newIndex, item);
+    notifyListeners();
+  }
+
+  // ⭐️ 코트 라이프사이클 1단계: [게임 종료] (in_progress -> finished)
   void finishGame(int courtNumber) {
     final gameIndex = _currentGames.indexWhere((g) => g.courtNumber == courtNumber);
     if (gameIndex != -1) {
       final game = _currentGames[gameIndex];
+      if (game.status != 'in_progress') return; // 이미 종료된 상태면 중복 반영 방지
+
+      // ⭐️ 상태 변경: 게임 종료
       game.status = 'finished';
 
       if (game.courtType == 'lesson') {
-        // 레슨 참여자 경기 수 1 증가
         for (final student in game.lessonStudents) {
           final mIdx = _members.indexWhere((m) => m.id == student.id);
-          if (mIdx != -1) {
-            _members[mIdx].matchCountToday++;
-          }
+          if (mIdx != -1) _members[mIdx].matchCountToday++;
         }
       } else {
-        // 일반 복식 경기 참여 선수 4명 경기 수 1 증가
         final playerIds = [
           ...game.teamA.map((p) => p.id),
           ...game.teamB.map((p) => p.id),
         ];
-
         for (final id in playerIds) {
           final memberIndex = _members.indexWhere((m) => m.id == id);
-          if (memberIndex != -1) {
-            _members[memberIndex].matchCountToday++;
-          }
+          if (memberIndex != -1) _members[memberIndex].matchCountToday++;
         }
       }
 
       notifyListeners();
     }
+  }
+
+  // ⭐️ 코트 라이프사이클 2단계: [입장] (대기 1번 팀 입장 -> in_progress로 전이, 대기열 순번 자동 전진)
+  bool enterNextMatchToCourt(int courtNumber) {
+    if (_waitingQueue.isEmpty) return false;
+
+    // 대기 1번 매칭 인출 (순번 하나씩 앞으로 당겨짐)
+    final nextMatch = _waitingQueue.removeAt(0);
+    final nowStr = DateFormat('HH:mm').format(DateTime.now());
+
+    final enteredGame = GameMatch(
+      courtNumber: courtNumber,
+      gameId: nextMatch.gameId.isNotEmpty ? nextMatch.gameId : 'match_${DateTime.now().millisecondsSinceEpoch}',
+      teamA: nextMatch.teamA,
+      teamB: nextMatch.teamB,
+      status: 'in_progress', // ⭐️ 코트 상태: 게임중...
+      startTime: nowStr,
+      isFixedPair: nextMatch.isFixedPair,
+    );
+
+    final idx = _currentGames.indexWhere((g) => g.courtNumber == courtNumber);
+    if (idx != -1) {
+      _currentGames[idx] = enteredGame;
+    } else {
+      _currentGames.add(enteredGame);
+      _currentGames.sort((a, b) => a.courtNumber.compareTo(b.courtNumber));
+    }
+
+    notifyListeners();
+    return true;
   }
 
   // 영구 마스터 회원 명부 로드 (0원 무과금 최적화: 읽기 1회)
