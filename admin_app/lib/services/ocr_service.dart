@@ -19,13 +19,15 @@ class ParsedAttendeeCandidate {
 
 class OcrResult {
   final List<Member> matchedMembers; // 기존 회원 명단에서 인식된 회원들
-  final List<String> potentialGuestNames; // 기존 명단에 없지만 캡처에서 발견된 게스트 후보 이름들
-  final Map<String, String> guestGenders; // 게스트 이름 -> 성별 ('M' / 'F')
+  final List<ParsedAttendeeCandidate> unmatchedCandidates; // 기존 명단에 매칭되지 않은 미등록 참석자들
+  final List<String> potentialGuestNames; // 하위 호환용 미등록 참석자 이름들
+  final Map<String, String> guestGenders; // 이름 -> 성별 ('M' / 'F')
   final Map<String, String> matchedOriginalNames; // 회원 ID -> 캡처에서 추출된 이름 (예: 성 생략 시 "재호")
   final String rawText; // 추출된 원본 텍스트
 
   OcrResult({
     required this.matchedMembers,
+    this.unmatchedCandidates = const [],
     required this.potentialGuestNames,
     this.guestGenders = const {},
     this.matchedOriginalNames = const {},
@@ -259,6 +261,7 @@ class OcrService {
 
       return OcrResult(
         matchedMembers: matchedList,
+        unmatchedCandidates: unmatchedCandidates,
         potentialGuestNames: guestNames,
         guestGenders: guestGenders,
         matchedOriginalNames: matchedOriginalNames,
