@@ -1,6 +1,9 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:file_picker/file_picker.dart';
 import '../providers/app_state.dart';
 import '../models/member.dart';
 import '../services/ocr_service.dart';
@@ -1334,18 +1337,77 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                     ),
                   ],
                 ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    icon: const Icon(Icons.paste, size: 16),
-                    label: const Text('예시 텍스트 채우기', style: TextStyle(fontSize: 12)),
-                    onPressed: () {
-                      setDialogState(() {
-                        textController.text =
-                            '홍길동\tA\t남\n김철수\tB\t남\n이영희\tC\t여\n박지민\tD\t여\n최민턴\tS\t남';
-                      });
-                    },
-                  ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: Colors.indigo.shade700,
+                        side: BorderSide(color: Colors.indigo.shade300),
+                      ),
+                      icon: const Icon(Icons.attach_file, size: 16),
+                      label: const Text('파일 첨부 (.csv)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      onPressed: () async {
+                        try {
+                          final result = await FilePicker.platform.pickFiles(
+                            type: FileType.custom,
+                            allowedExtensions: ['csv', 'txt'],
+                            withData: true,
+                          );
+
+                          if (result != null && result.files.isNotEmpty) {
+                            final file = result.files.first;
+                            List<int>? bytes = file.bytes;
+                            if (bytes == null && file.path != null) {
+                              bytes = await File(file.path!).readAsBytes();
+                            }
+
+                            if (bytes != null && bytes.isNotEmpty) {
+                              // UTF-8 BOM (0xEF, 0xBB, 0xBF) 제거
+                              if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
+                                bytes = bytes.sublist(3);
+                              }
+
+                              String decoded;
+                              try {
+                                decoded = utf8.decode(bytes);
+                              } catch (_) {
+                                decoded = String.fromCharCodes(bytes);
+                              }
+
+                              setDialogState(() {
+                                textController.text = decoded.trim();
+                              });
+
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('\'${file.name}\' 파일을 성공적으로 불러왔습니다!')),
+                                );
+                              }
+                            }
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('파일 불러오기 실패: $e')),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.paste, size: 16),
+                      label: const Text('예시 채우기', style: TextStyle(fontSize: 12)),
+                      onPressed: () {
+                        setDialogState(() {
+                          textController.text =
+                              '홍길동\tA\t남\n김철수\tB\t남\n이영희\tC\t여\n박지민\tD\t여\n최민턴\tS\t남';
+                        });
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
