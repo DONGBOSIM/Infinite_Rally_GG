@@ -36,6 +36,13 @@ class AppState extends ChangeNotifier {
 
   // Getters
   List<Member> get members => _members;
+  // ⭐️ 정식 회원만 반환 (게스트 제외)
+  List<Member> get regularMembers => _members.where((m) => !m.isGuest).toList();
+  int get regularMemberCount => _members.where((m) => !m.isGuest).length;
+  // 오늘 참석한 게스트 목록
+  List<Member> get todayGuests => _members.where((m) => m.isPresent && m.isGuest).toList();
+  int get todayGuestCount => _members.where((m) => m.isPresent && m.isGuest).length;
+
   int get courtCount => _courtCount;
   List<GameMatch> get currentGames => _currentGames;
   List<Map<String, dynamic>> get upcomingGames => _upcomingGames;
@@ -511,9 +518,11 @@ class AppState extends ChangeNotifier {
     try {
       final remoteList = await _firestoreService.fetchMasterMembers();
       if (remoteList != null && remoteList.isNotEmpty) {
+        // 원격 마스터 명단 정제 (혹시 기존에 저장된 게스트가 있다면 완전히 제외)
+        final cleanRemoteList = remoteList.where((m) => !m.isGuest && !m.name.startsWith('G ')).toList();
         // 원격 마스터 명단으로 교체하되, 현재 메모리의 출석/경기 수 상태가 있다면 보존
         final merged = <Member>[];
-        for (final remoteM in remoteList) {
+        for (final remoteM in cleanRemoteList) {
           final localIdx = _members.indexWhere((m) => m.id == remoteM.id);
           if (localIdx != -1) {
             remoteM.isPresent = _members[localIdx].isPresent;
@@ -574,7 +583,9 @@ class AppState extends ChangeNotifier {
 
     // 당일 세션과 영구 마스터 회원 명부를 원스톱으로 저장
     final sessionSuccess = await _firestoreService.uploadDailySession(session);
-    final masterSuccess = await _firestoreService.saveMasterMembers(_members);
+    // ⭐️ 영구 마스터 회원 DB에는 게스트를 100% 제외하고 순수 정식 회원만 영구 보존!
+    final regularMembersOnly = regularMembers;
+    final masterSuccess = await _firestoreService.saveMasterMembers(regularMembersOnly);
 
     final success = sessionSuccess && masterSuccess;
     _isUploading = false;

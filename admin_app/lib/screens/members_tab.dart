@@ -38,7 +38,7 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final members = appState.members;
+    final regularMembers = appState.regularMembers;
     final todayAttendees = appState.todayAttendees;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -156,7 +156,7 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
             ),
             Tab(
               icon: const Icon(Icons.groups, size: 20),
-              text: '전체 회원 (${members.length}명)',
+              text: '전체 회원 (${regularMembers.length}명)',
             ),
           ],
         ),
@@ -194,7 +194,9 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                   Row(
                     children: [
                       Text(
-                        '참석: ${attendees.length}명',
+                        appState.todayGuestCount > 0
+                            ? '참석: ${attendees.length}명 (G ${appState.todayGuestCount})'
+                            : '참석: ${attendees.length}명',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                       const SizedBox(width: 8),
@@ -493,11 +495,28 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                           ),
                           const SizedBox(width: 4),
 
-                          // 당일 참석 해제(불참 전환) 아이콘
+                          // 정회원은 참석 해제(불참 전환), 게스트는 즉시 삭제
                           IconButton(
-                            icon: const Icon(Icons.close, size: 18, color: Colors.grey),
-                            tooltip: '참석 해제',
-                            onPressed: () => appState.toggleAttendance(member.id),
+                            icon: Icon(
+                              member.isGuest ? Icons.delete_outline : Icons.close,
+                              size: 18,
+                              color: member.isGuest ? Colors.redAccent : Colors.grey,
+                            ),
+                            tooltip: member.isGuest ? '게스트 삭제' : '참석 해제',
+                            onPressed: () {
+                              if (member.isGuest) {
+                                appState.removeMember(member.id);
+                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('${member.name} 게스트가 삭제되었습니다.'),
+                                    duration: const Duration(seconds: 1),
+                                  ),
+                                );
+                              } else {
+                                appState.toggleAttendance(member.id);
+                              }
+                            },
                           ),
                         ],
                       ),
@@ -513,7 +532,8 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
   // 탭 2: 전체 회원 관리 화면 (검색, 급수필터, 회원추가)
   // ==========================================
   Widget _buildAllMembersTab(BuildContext context, AppState appState, bool isDark) {
-    final members = appState.members;
+    // ⭐️ 게스트는 전체 회원 명단에서 100% 제외하고 순수 정식 회원만 표시
+    final members = appState.regularMembers;
 
     final filteredMembers = members.where((m) {
       final matchesSearch = m.name.contains(_searchQuery) || m.displayName.contains(_searchQuery);
