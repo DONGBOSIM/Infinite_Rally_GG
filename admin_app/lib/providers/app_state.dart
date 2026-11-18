@@ -98,6 +98,15 @@ class AppState extends ChangeNotifier {
               'gender': m.gender,
             })
         .toList();
+
+    // ⭐️ 레슨 진행 중인 인원(_members 중 active)을 _currentGames의 레슨 코트(제4코트)에 실시간 자동 동기화
+    final activeStudents = activeLessonMembers;
+    for (final game in _currentGames) {
+      if (game.courtType == 'lesson') {
+        game.lessonStudents = List<Member>.from(activeStudents);
+        game.lessonCoach = _lessonCoach;
+      }
+    }
   }
 
   void _syncWaitingQueueFromRemote(List<Map<String, dynamic>> remoteList) {
@@ -577,11 +586,14 @@ class AppState extends ChangeNotifier {
         if (_isLessonCourtEnabled && game.courtType != 'lesson') {
           game.courtType = 'lesson';
           game.lessonCoach = _lessonCoach;
+          game.lessonStudents = List<Member>.from(activeLessonMembers);
         } else if (!_isLessonCourtEnabled && game.courtType == 'lesson') {
           game.courtType = 'game';
+          game.lessonStudents = [];
         }
       }
     }
+    _syncLessonQueue();
     _currentGames.sort((a, b) => a.courtNumber.compareTo(b.courtNumber));
     _currentGames.removeWhere((g) => g.courtNumber > _courtCount);
   }

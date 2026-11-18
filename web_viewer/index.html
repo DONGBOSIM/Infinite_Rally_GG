@@ -978,6 +978,7 @@
       <div class="footer-quote">✨ 무한랠리 배드민턴 동호회 ✨</div>
       <p>본 전광판은 관리자 앱과 1초 이내로 실시간 자동 연동됩니다 (새로고침 불필요).</p>
       <p style="margin-top: 4px; font-size: 0.72rem; color: var(--text-sub);">Hosted on Firebase Hosting (0-Cost Serverless)</p>
+      <p style="margin-top: 6px; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); letter-spacing: 0.5px;">Built by 네로탱구</p>
     </footer>
   </div>
 
@@ -1212,8 +1213,18 @@
           // CASE A: 제 4코트 레슨 모드 렌더링
           // ----------------------------------------------------
           if (isLessonCourt) {
-            const students = game.lessonStudents || [];
-            const queue = data.lessonQueue || [];
+            let students = game.lessonStudents || [];
+            let queue = data.lessonQueue || [];
+
+            // ⭐️ members 데이터와 교차 검증 (레슨 해제 시 즉시 반영)
+            if (Array.isArray(data.members) && data.members.length > 0) {
+              const activeNames = new Set(data.members.filter(m => m.lessonStatus === 'active' || m.isLesson === true).map(m => m.name));
+              students = students.filter(s => activeNames.has(s.name));
+
+              const waitingNames = new Set(data.members.filter(m => m.lessonStatus === 'waiting').map(m => m.name));
+              queue = queue.filter(q => waitingNames.has(q.name));
+            }
+
             const isMyLessonActive = students.some(s => isMatchName(s.name));
             const isMyLessonWaiting = queue.some(q => isMatchName(q.name));
             const isMyCourt = isMyLessonActive || isMyLessonWaiting;
