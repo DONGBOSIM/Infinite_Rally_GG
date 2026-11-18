@@ -726,8 +726,10 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
   }
 
   void _showOcrResultDialog(BuildContext context, AppState appState, OcrResult result) {
+    // ⭐️ 기존 회원은 기본 '활성화(체크)'
     final selectedMemberIds = Set<String>.from(result.matchedMembers.map((m) => m.id));
-    final selectedGuestNames = Set<String>.from(result.potentialGuestNames);
+    // ⭐️ 게스트 후보는 관리자가 선택하여 활성화할 수 있도록 기본 '비활성화(체크 해제)'
+    final selectedGuestNames = <String>{};
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
@@ -760,46 +762,157 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                   const Divider(height: 16),
 
                   if (result.matchedMembers.isNotEmpty) ...[
-                    const Text('✅ 기존 회원 참석 매칭:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('✅ 기존 회원 참석 매칭 (${selectedMemberIds.length}/${result.matchedMembers.length}):',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        Row(
+                          children: [
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(40, 24),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () {
+                                setDialogState(() {
+                                  selectedMemberIds.addAll(result.matchedMembers.map((m) => m.id));
+                                });
+                              },
+                              child: const Text('전체', style: TextStyle(fontSize: 11)),
+                            ),
+                            const Text('/', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(40, 24),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () {
+                                setDialogState(() {
+                                  selectedMemberIds.clear();
+                                });
+                              },
+                              child: const Text('해제', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 6),
-                    ...result.matchedMembers.map((m) => CheckboxListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          title: Text('${m.name} (${m.tier}조)'),
-                          value: selectedMemberIds.contains(m.id),
-                          onChanged: (val) {
-                            setDialogState(() {
-                              if (val == true) {
-                                selectedMemberIds.add(m.id);
-                              } else {
-                                selectedMemberIds.remove(m.id);
-                              }
-                            });
-                          },
-                        )),
+                    ...result.matchedMembers.map((m) {
+                      final orig = result.matchedOriginalNames[m.id];
+                      final isOmitted = orig != null && orig != m.name;
+                      return CheckboxListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Row(
+                          children: [
+                            Text('${m.name} (${m.tier}조)', style: const TextStyle(fontSize: 13)),
+                            if (isOmitted) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withAlpha(30),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text('사진: $orig', style: const TextStyle(fontSize: 10, color: Colors.blueAccent)),
+                              ),
+                            ],
+                          ],
+                        ),
+                        value: selectedMemberIds.contains(m.id),
+                        onChanged: (val) {
+                          setDialogState(() {
+                            if (val == true) {
+                              selectedMemberIds.add(m.id);
+                            } else {
+                              selectedMemberIds.remove(m.id);
+                            }
+                          });
+                        },
+                      );
+                    }),
                     const SizedBox(height: 12),
                   ],
 
                   if (result.potentialGuestNames.isNotEmpty) ...[
-                    const Text('➕ 게스트(미등록 인원) 후보:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.amber)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('➕ 게스트 후보 (${selectedGuestNames.length}/${result.potentialGuestNames.length}):',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.orange)),
+                        Row(
+                          children: [
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(40, 24),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () {
+                                setDialogState(() {
+                                  selectedGuestNames.addAll(result.potentialGuestNames);
+                                });
+                              },
+                              child: const Text('전체', style: TextStyle(fontSize: 11)),
+                            ),
+                            const Text('/', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(40, 24),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () {
+                                setDialogState(() {
+                                  selectedGuestNames.clear();
+                                });
+                              },
+                              child: const Text('해제', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 4),
-                    Text('체크된 인원은 "G 이름" 게스트로 자동 등록됩니다.', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                    Text('※ 오늘 참석한 게스트만 체크(활성화)하여 등록해 주세요.', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                     const SizedBox(height: 6),
-                    ...result.potentialGuestNames.map((gName) => CheckboxListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          title: Text('G $gName'),
-                          value: selectedGuestNames.contains(gName),
-                          onChanged: (val) {
-                            setDialogState(() {
-                              if (val == true) {
-                                selectedGuestNames.add(gName);
-                              } else {
-                                selectedGuestNames.remove(gName);
-                              }
-                            });
-                          },
-                        )),
+                    ...result.potentialGuestNames.map((gName) {
+                      final gender = result.guestGenders[gName] ?? 'M';
+                      final genderStr = gender == 'F' ? '여' : '남';
+                      final genderColor = gender == 'F' ? Colors.pink : Colors.blue;
+                      return CheckboxListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Row(
+                          children: [
+                            Text('G $gName', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: genderColor.withAlpha(30),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(genderStr, style: TextStyle(fontSize: 10, color: genderColor, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                        value: selectedGuestNames.contains(gName),
+                        onChanged: (val) {
+                          setDialogState(() {
+                            if (val == true) {
+                              selectedGuestNames.add(gName);
+                            } else {
+                              selectedGuestNames.remove(gName);
+                            }
+                          });
+                        },
+                      );
+                    }),
                   ],
 
                   if (result.matchedMembers.isEmpty && result.potentialGuestNames.isEmpty) ...[
@@ -825,6 +938,7 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                 appState.applyOcrBatch(
                   memberIds: selectedMemberIds.toList(),
                   newGuestNames: selectedGuestNames.toList(),
+                  guestGenders: result.guestGenders,
                 );
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -834,7 +948,7 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                   ),
                 );
               },
-              child: const Text('선택 인원 일괄 등록'),
+              child: Text('선택 인원 일괄 등록 (${selectedMemberIds.length + selectedGuestNames.length}명)'),
             ),
           ],
         ),

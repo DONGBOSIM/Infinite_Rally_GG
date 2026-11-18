@@ -294,6 +294,7 @@ class AppState extends ChangeNotifier {
   void applyOcrBatch({
     required List<String> memberIds,
     required List<String> newGuestNames,
+    Map<String, String>? guestGenders,
     String defaultGuestTier = 'C',
     bool defaultSubmitShuttle = false,
   }) {
@@ -308,13 +309,15 @@ class AppState extends ChangeNotifier {
       }
     }
 
-    // 2. 신규 게스트 등록 (오늘 참여자로 등록)
+    // 2. 신규 게스트 등록 (오늘 참여자로 등록, 사진에서 파싱된 성별 반영)
     for (final gName in newGuestNames) {
-      if (gName.trim().isNotEmpty) {
+      final trimmed = gName.trim();
+      if (trimmed.isNotEmpty) {
+        final gender = guestGenders?[trimmed] ?? 'M';
         addGuest(
-          name: gName.trim(),
+          name: trimmed,
           tier: defaultGuestTier,
-          gender: 'M',
+          gender: gender,
           hasSubmittedShuttle: defaultSubmitShuttle,
         );
       }
