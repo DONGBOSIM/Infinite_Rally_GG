@@ -579,8 +579,6 @@ class MatchTab extends StatelessWidget {
                           }
                           final success = appState.enterNextMatchToCourt(game.courtNumber);
                           if (success) {
-                            final newGame = appState.currentGames.firstWhere((g) => g.courtNumber == game.courtNumber);
-                            _ttsService.speakCourt(newGame);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('제 ${game.courtNumber} 코트에 대기 1번 팀이 입장하여 게임이 시작되었습니다!'),
