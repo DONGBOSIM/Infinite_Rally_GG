@@ -589,6 +589,45 @@ class MatchTab extends StatelessWidget {
                         },
                       ),
                     ],
+
+                    // 3) 코트 비우기 버튼 (코트에 게임이 배정되어 있는 경우 언제든 비울 수 있음)
+                    if (!isIdle) ...[
+                      const SizedBox(width: 6),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          foregroundColor: isDark ? Colors.red.shade300 : Colors.red.shade600,
+                          side: BorderSide(color: isDark ? Colors.red.shade700 : Colors.red.shade300),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                        icon: const Icon(Icons.delete_outline, size: 14),
+                        label: const Text('비우기 🗑️', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: Text('제 ${game.courtNumber} 코트 비우기'),
+                              content: Text('제 ${game.courtNumber} 코트의 게임을 취소하고 빈 코트로 리셋할까요?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                    appState.clearCourt(game.courtNumber);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('제 ${game.courtNumber} 코트가 비워졌습니다.')),
+                                    );
+                                  },
+                                  child: const Text('비우기', style: TextStyle(color: Colors.white)),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ],

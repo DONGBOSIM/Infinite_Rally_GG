@@ -101,6 +101,8 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                 appState.setAllAttendance(false);
               } else if (value == 'reset_matches') {
                 appState.resetMatchCounts();
+              } else if (value == 'reset_today') {
+                _showResetTodayDialog(context, appState);
               } else if (value == 'reload_members') {
                 await appState.loadMasterMembers();
                 if (context.mounted) {
@@ -128,6 +130,17 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
               const PopupMenuItem(value: 'all_present', child: Text('전체 참석 처리')),
               const PopupMenuItem(value: 'all_absent', child: Text('전체 불참 처리')),
               const PopupMenuItem(value: 'reset_matches', child: Text('오늘 경기 횟수 초기화')),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'reset_today',
+                child: Row(
+                  children: [
+                    Icon(Icons.restart_alt, size: 18, color: Colors.orange),
+                    SizedBox(width: 8),
+                    Text('오늘 참가자/세션 초기화', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                  ],
+                ),
+              ),
               const PopupMenuDivider(),
               const PopupMenuItem(value: 'reload_members', child: Text('클라우드 회원 명부 새로고침')),
               const PopupMenuDivider(),
@@ -336,7 +349,55 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('오늘 출전: ${member.matchCountToday}게임', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          Row(
+                            children: [
+                              Text('오늘 출전: ${member.matchCountToday}게임', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                              const SizedBox(width: 6),
+                              InkWell(
+                                onTap: member.matchCountToday > 0
+                                    ? () => appState.adjustMatchCount(member.id, -1)
+                                    : null,
+                                borderRadius: BorderRadius.circular(4),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    '-1',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: member.matchCountToday > 0
+                                          ? (isDark ? Colors.red.shade300 : Colors.red.shade700)
+                                          : Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              InkWell(
+                                onTap: () => appState.adjustMatchCount(member.id, 1),
+                                borderRadius: BorderRadius.circular(4),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    '+1',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.green.shade300 : Colors.green.shade700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: 3),
                           Builder(builder: (context) {
                             final fixedPartner = appState.getFixedPartner(member.id);
@@ -1269,7 +1330,7 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                     tier: selectedTier,
                     gender: selectedGender,
                     isPresent: true,
-                    hasSubmittedShuttle: true,
+                    hasSubmittedShuttle: false,
                   );
                   context.read<AppState>().addMember(newMember);
                   Navigator.pop(ctx);
@@ -1466,6 +1527,44 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
               }
             },
             child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 오늘 참가자/세션 초기화 다이얼로그 (마스터 DB는 보존)
+  void _showResetTodayDialog(BuildContext context, AppState appState) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.restart_alt, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('오늘 참가자 초기화'),
+          ],
+        ),
+        content: const Text(
+          '오늘 모임의 모든 참가 상태(출석, 콕 제출, 레슨, 경기수, 당일 게스트, 코트 및 대기열)를 초기화합니다.\n\n'
+          '※ 전체 회원 명부(DB)는 안전하게 보존됩니다.\n\n'
+          '정말 오늘 참가자 데이터를 초기화하시겠습니까?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade800),
+            onPressed: () {
+              Navigator.pop(ctx);
+              appState.resetTodaySession();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('오늘 참가자 및 모임 데이터가 깔끔하게 초기화되었습니다.'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            child: const Text('초기화 실행', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

@@ -225,6 +225,7 @@ class AppState extends ChangeNotifier {
 
       _isRemoteSyncActive = true;
       _currentGames = session.currentGames;
+      ensureCourtsExist();
       _syncWaitingQueueFromRemote(session.upcomingGames);
       _notice = session.notice;
       _isLessonCourtEnabled = session.isLessonCourtEnabled;
@@ -533,6 +534,41 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ⭐️ 개별 회원의 오늘 경기 횟수 증감 (+1 또는 -1)
+  void adjustMatchCount(String memberId, int delta) {
+    final index = _members.indexWhere((m) => m.id == memberId);
+    if (index != -1) {
+      final newCount = _members[index].matchCountToday + delta;
+      _members[index].matchCountToday = newCount < 0 ? 0 : newCount;
+      notifyListeners();
+    }
+  }
+
+  // ⭐️ 오늘 참가자 및 매칭 세션 초기화 (정회원 마스터 DB는 보존하고 당일 활동만 리셋)
+  void resetTodaySession() {
+    // 1. 모든 회원 상태 리셋 (출석 해제, 콕 미제출, 레슨 해제, 경기수 0)
+    for (final member in _members) {
+      member.isPresent = false;
+      member.hasSubmittedShuttle = false;
+      member.lessonStatus = 'none';
+      member.matchCountToday = 0;
+    }
+
+    // 2. 당일 임시 게스트 회원 목록에서 삭제
+    _members.removeWhere((m) => m.isGuest);
+
+    // 3. 대기열 및 레슨 대기열 비우기
+    _waitingQueue.clear();
+    _lessonQueue.clear();
+
+    // 4. 모든 코트 비우기 (항상 1~4코트 idle 상태로 리셋)
+    _currentGames.clear();
+    if (_courtCount < 4) _courtCount = 4;
+    ensureCourtsExist();
+
+    notifyListeners();
+  }
+
   // ⭐️ 현재 코트 게임 중이거나 대기열에 있지 않은, 즉시 대기 매칭 가능한 인원 목록
   List<Member> get availableMembersForQueue {
     final busyIds = <String>{};
@@ -562,8 +598,9 @@ class AppState extends ChangeNotifier {
         !busyIds.contains(m.id)).toList();
   }
 
-  // 1~courtCount 코트 슬롯 보장 (비어있는 코트는 idle)
+  // 1~courtCount 코트 슬롯 보장 (최소 4코트 보장 및 비어있는 코트는 idle)
   void ensureCourtsExist() {
+    if (_courtCount < 4) _courtCount = 4;
     final existingNumbers = _currentGames.map((g) => g.courtNumber).toSet();
     for (int i = 1; i <= _courtCount; i++) {
       if (!existingNumbers.contains(i)) {
@@ -577,6 +614,7 @@ class AppState extends ChangeNotifier {
           startTime: '',
           courtType: isLesson ? 'lesson' : 'game',
           lessonCoach: isLesson ? _lessonCoach : '',
+          lessonStudents: isLesson ? List<Member>.from(activeLessonMembers) : [],
         ));
       }
     }
@@ -596,6 +634,31 @@ class AppState extends ChangeNotifier {
     _syncLessonQueue();
     _currentGames.sort((a, b) => a.courtNumber.compareTo(b.courtNumber));
     _currentGames.removeWhere((g) => g.courtNumber > _courtCount);
+  }
+
+  // ⭐️ 코트 비우기 (해당 코트의 게임을 완전히 취소하고 idle 빈 코트로 리셋)
+  void clearCourt(int courtNumber) {
+    final gameIndex = _currentGames.indexWhere((g) => g.courtNumber == courtNumber);
+    final isLesson = _isLessonCourtEnabled && courtNumber == 4 && _courtCount >= 4;
+    final clearedGame = GameMatch(
+      courtNumber: courtNumber,
+      gameId: 'idle_$courtNumber',
+      teamA: [],
+      teamB: [],
+      status: 'idle',
+      startTime: '',
+      courtType: isLesson ? 'lesson' : 'game',
+      lessonCoach: isLesson ? _lessonCoach : '',
+      lessonStudents: isLesson ? List<Member>.from(activeLessonMembers) : [],
+    );
+
+    if (gameIndex != -1) {
+      _currentGames[gameIndex] = clearedGame;
+    } else {
+      _currentGames.add(clearedGame);
+    }
+    _currentGames.sort((a, b) => a.courtNumber.compareTo(b.courtNumber));
+    notifyListeners();
   }
 
   // ⭐️ [공평 자동 매칭 생성] -> 코트의 진행 중 게임을 절대 건드리지 않고 '대기열(Queue)'에 추가!
