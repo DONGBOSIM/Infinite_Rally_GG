@@ -479,7 +479,8 @@ class MatchTab extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 카드 상단 헤더 (코트 번호 & 상태 뱃지 & 액션 버튼)
+            // 카드 상단 헤더: 1행(코트 정보 & 비우기) / 2행(진행 액션 버튼)
+            // 1행: 코트 번호 & 상태 뱃지 & 시작 시간 <---> 코트 비우기
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -518,118 +519,134 @@ class MatchTab extends StatelessWidget {
                   ],
                 ),
 
-                // ⭐️ 상태에 따른 3단계 액션 버튼 (게임중 -> 게임 종료 -> 입장)
-                Row(
-                  children: [
-                    // 1) 게임중... 상태일 때: [호명 📢] 및 [게임 종료] 버튼
-                    if (isInProgress) ...[
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          foregroundColor: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
-                          side: BorderSide(color: isDark ? Colors.amber.shade700 : Colors.amber.shade400),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                        ),
-                        icon: const Icon(Icons.volume_up, size: 14),
-                        label: const Text('호명 📢', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        onPressed: () => _ttsService.speakCourt(game),
-                      ),
-                      const SizedBox(width: 6),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange.shade700,
-                          foregroundColor: Colors.white,
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                        ),
-                        icon: const Icon(Icons.stop_circle_outlined, size: 15),
-                        label: const Text('게임 종료', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        onPressed: () {
-                          appState.finishGame(game.courtNumber);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('제 ${game.courtNumber} 코트 게임이 종료되었습니다. [입장]을 눌러 다음 팀을 진행하세요.'),
-                              duration: const Duration(seconds: 2),
+                // 1행 우측: 코트 비우기 버튼 (선수가 배정되어 있는 경우)
+                if (!isIdle)
+                  InkWell(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: Text('제 ${game.courtNumber} 코트 비우기'),
+                          content: Text('제 ${game.courtNumber} 코트의 게임을 취소하고 빈 코트로 리셋할까요?'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                appState.clearCourt(game.courtNumber);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('제 ${game.courtNumber} 코트가 비워졌습니다.')),
+                                );
+                              },
+                              child: const Text('비우기', style: TextStyle(color: Colors.white)),
                             ),
-                          );
-                        },
-                      ),
-                    ],
-
-                    // 2) 게임 종료 또는 빈 코트 상태일 때: [입장 (대기 1번)] 버튼
-                    if (isFinished || isIdle) ...[
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: hasWaitingMatch ? Colors.indigo : Colors.grey.shade500,
-                          foregroundColor: Colors.white,
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          ],
                         ),
-                        icon: const Icon(Icons.login, size: 15),
-                        label: const Text('입장 🚀', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        onPressed: () {
-                          if (!hasWaitingMatch) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('대기열에 대기 중인 팀이 없습니다. 먼저 매칭을 추가해 주세요.')),
-                            );
-                            return;
-                          }
-                          final success = appState.enterNextMatchToCourt(game.courtNumber);
-                          if (success) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('제 ${game.courtNumber} 코트에 대기 1번 팀이 입장하여 게임이 시작되었습니다!'),
-                                backgroundColor: Colors.green.shade700,
-                              ),
-                            );
-                          }
-                        },
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: isDark ? Colors.red.shade700 : Colors.red.shade300),
+                        borderRadius: BorderRadius.circular(6),
+                        color: isDark ? Colors.red.shade900.withOpacity(0.2) : Colors.red.shade50,
                       ),
-                    ],
-
-                    // 3) 코트 비우기 버튼 (코트에 게임이 배정되어 있는 경우 언제든 비울 수 있음)
-                    if (!isIdle) ...[
-                      const SizedBox(width: 6),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          foregroundColor: isDark ? Colors.red.shade300 : Colors.red.shade600,
-                          side: BorderSide(color: isDark ? Colors.red.shade700 : Colors.red.shade300),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                        ),
-                        icon: const Icon(Icons.delete_outline, size: 14),
-                        label: const Text('비우기 🗑️', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: Text('제 ${game.courtNumber} 코트 비우기'),
-                              content: Text('제 ${game.courtNumber} 코트의 게임을 취소하고 빈 코트로 리셋할까요?'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                                  onPressed: () {
-                                    Navigator.pop(ctx);
-                                    appState.clearCourt(game.courtNumber);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('제 ${game.courtNumber} 코트가 비워졌습니다.')),
-                                    );
-                                  },
-                                  child: const Text('비우기', style: TextStyle(color: Colors.white)),
-                                ),
-                              ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.delete_outline, size: 13, color: isDark ? Colors.red.shade300 : Colors.red.shade700),
+                          const SizedBox(width: 3),
+                          Text(
+                            '비우기 🗑️',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.red.shade300 : Colors.red.shade700,
                             ),
-                          );
-                        },
+                          ),
+                        ],
                       ),
-                    ],
-                  ],
-                ),
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // 2행: 상태에 따른 메인 진행 액션 버튼 (호명 📢, 게임 종료 / 입장 🚀)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // 1) 게임중... 상태일 때: [호명 📢] 및 [게임 종료] 버튼
+                if (isInProgress) ...[
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      foregroundColor: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
+                      side: BorderSide(color: isDark ? Colors.amber.shade700 : Colors.amber.shade400),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                    icon: const Icon(Icons.volume_up, size: 14),
+                    label: const Text('호명 📢', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () => _ttsService.speakCourt(game),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade700,
+                      foregroundColor: Colors.white,
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                    icon: const Icon(Icons.stop_circle_outlined, size: 15),
+                    label: const Text('게임 종료', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      appState.finishGame(game.courtNumber);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('제 ${game.courtNumber} 코트 게임이 종료되었습니다. [입장]을 눌러 다음 팀을 진행하세요.'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+
+                // 2) 게임 종료 또는 빈 코트 상태일 때: [입장 🚀] 버튼
+                if (isFinished || isIdle) ...[
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: hasWaitingMatch ? Colors.indigo : Colors.grey.shade500,
+                      foregroundColor: Colors.white,
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                    icon: const Icon(Icons.login, size: 15),
+                    label: const Text('입장 🚀', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      if (!hasWaitingMatch) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('대기열에 대기 중인 팀이 없습니다. 먼저 매칭을 추가해 주세요.')),
+                        );
+                        return;
+                      }
+                      final success = appState.enterNextMatchToCourt(game.courtNumber);
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('제 ${game.courtNumber} 코트에 대기 1번 팀이 입장하여 게임이 시작되었습니다!'),
+                            backgroundColor: Colors.green.shade700,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ],
               ],
             ),
 
