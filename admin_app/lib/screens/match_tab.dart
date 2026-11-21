@@ -418,9 +418,13 @@ class MatchTab extends StatelessWidget {
           icon: appState.isUploading
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
               : const Icon(Icons.cloud_upload),
-          label: Text(
-            appState.isUploading ? 'Firestore 동기화 중...' : '회원 웹페이지로 실시간 업로드 (DB 동기화)',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          label: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              appState.isUploading ? 'Firestore 동기화 중...' : '웹 전광판 실시간 업로드 (DB 동기화)',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              maxLines: 1,
+            ),
           ),
           onPressed: appState.isUploading
               ? null

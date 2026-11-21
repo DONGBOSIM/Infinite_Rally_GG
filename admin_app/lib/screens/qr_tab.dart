@@ -127,7 +127,7 @@ class QrTab extends StatelessWidget {
 
             OutlinedButton.icon(
               icon: const Icon(Icons.settings),
-              label: const Text('GitHub Pages 배포 URL 설정'),
+              label: const Text('웹 전광판 접속 URL 설정'),
               onPressed: () => _showEditUrlDialog(context, appState),
             ),
           ],
