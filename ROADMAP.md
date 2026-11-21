@@ -120,6 +120,29 @@
 - [x] `web_viewer/index.html`: 4코트 레슨 모드 / 게임 모드 실시간 분기 렌더링
 - [x] `web_viewer/index.html`: 내 이름 검색 및 코트 하이라이트 기능 추가
 
+### 📌 Phase 5: 현장 안정성 강화 & 숨은 버그 수정 (최우선)
+- [ ] **실시간 자동 동기화(Auto-Sync) & 미저장 알림**: `app_state.dart`, `match_tab.dart`, `members_tab.dart` — 1~2초 디바운스 자동 동기화 ON/OFF 스위치 및 미동기화 변경사항 알림 뱃지 추가
+- [ ] **다중 관리자 동기화 순서 보정**: `app_state.dart` — `initRealtimeSync()`에서 원격 `_isLessonCourtEnabled` 반영 후 `ensureCourtsExist()` 호출하도록 순서 수정
+- [ ] **웹 전광판 표시 버그 3종 수정**: `web_viewer/index.html`, `app_state.dart`
+  - `finished`(게임 종료) 상태 별도 표시 및 종료 코트 선수 검색 시 `'출전 중'` 오표시 수정
+  - 게스트 `[G] G 이름` 중복 `G` 태그 표기 제거
+  - 4코트 레슨 모드일 때 대기열의 `'4코트 예정'` 오표시 수정
+- [ ] **회원 정보 수정 UI 연동**: `members_tab.dart` — `[전체 회원]` 탭에서 이름·급수·성별 수정 다이얼로그 추가 (기존 `updateMember()` 연동)
+- [ ] **UI/문구 잔재 정리**: `qr_tab.dart`의 구 `GitHub Pages` 안내 문구를 Firebase Hosting 기준으로 변경, `match_tab.dart` 코트 수 `-` 버튼 최소값(4코트) 일치
+
+### 📌 Phase 6: 체육관 운영 UX 고도화 (편의성 개선)
+- [ ] **대기열 팀 편집(`[수정 ✏️]`) 기능**: `match_tab.dart`, `app_state.dart` — 대기열 카드에서 선수 1명 교체 및 Team A/B 간 자리 스왑
+- [ ] **수동 대기 매칭 인원 상태 구분**: `match_tab.dart` — 쉬고 있는 인원 최상단 정렬 및 `(1코트 게임중)` / `(대기 1번)` 상태 뱃지 표시
+- [ ] **매칭 알고리즘 고도화**: `matching_service.dart`, `app_state.dart` — 남복/여복/혼복(4:0, 2:2) 성별 조합 우선 및 3:1 페널티 적용, 직전 경기 동일 파트너 연속 배정 회피
+- [ ] **레슨 대기자 원클릭 입장**: `match_tab.dart`, `app_state.dart` — 레슨 코트 카드에서 다음 레슨 대기자를 탭/버튼 한 번으로 진행 상태로 전환
+- [ ] **`[오늘 참여자]` 필터 & 게스트/OCR 편의성**: `members_tab.dart` — 이름 검색 + 필터(`전체 / 콕 미제출 / 레슨 / 경기수 적은순`), 게스트 추가 시 `[✓] 콕 제출 완료로 바로 등록` 체크박스, OCR 미등록 인원에 `[게스트 등록]` 버튼 병행 제공
+- [ ] **코트 실수 입장 복구 옵션**: `match_tab.dart`, `app_state.dart` — 코트 `[비우기]` 팝업에 "이 팀을 대기열 1번으로 되돌리기" 옵션 추가
+
+### 📌 Phase 7: 회원·관리자 편의 기능 확장 (0원 무과금)
+- [ ] **코트별 경과 시간 타이머 표시**: `match_tab.dart`, `web_viewer/index.html` — 시작 시각 기준 `N분 경과` 표시 및 20분 초과 시 주황 강조 (100% 클라이언트 계산)
+- [ ] **웹 전광판 "내 차례 알림"**: `web_viewer/index.html` — 내 이름 검색 상태에서 대기 1번 또는 코트 입장 전환 시 진동(`navigator.vibrate`) / Web Audio API 알림음 토글
+- [ ] **오늘의 모임 요약 리포트 복사**: `members_tab.dart`, `match_tab.dart` — 모임 종료 후 단톡방 공유용 통계 요약 원클릭 클립보드 복사
+
 ---
 
 ## 🛠️ 작업 시 필수 준수 사항 (`AGENTS.md`)
