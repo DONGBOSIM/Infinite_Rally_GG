@@ -422,6 +422,46 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
+    .alert-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      padding: 0 2px;
+    }
+
+    .btn-alert-toggle {
+      border: 1px solid var(--card-border);
+      background: var(--bg-base);
+      color: var(--text-muted);
+      font-size: 0.73rem;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .btn-alert-toggle.active {
+      background: var(--brand-mint-light);
+      color: var(--brand-mint);
+      border-color: var(--brand-mint-border);
+    }
+
+    @keyframes alertPulse {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+      45% { transform: scale(1.015); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    .banner-alert-pulse {
+      animation: alertPulse 0.9s ease-out 2;
+    }
+
     /* 내 코트 & 플레이어 하이라이트 효과 */
     .court-card.my-court {
       border: 2.5px solid var(--highlight-ring) !important;
@@ -509,8 +549,40 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
       background: var(--bg-base);
       border-bottom: 1px solid var(--card-border);
+    }
+
+    .court-header-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .elapsed-tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: var(--card-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--card-border);
+      white-space: nowrap;
+    }
+
+    .elapsed-tag.elapsed-over {
+      background: #ffedd5;
+      color: #c2410c;
+      border-color: #fdba74;
+    }
+
+    [data-theme="dark"] .elapsed-tag.elapsed-over {
+      background: rgba(249, 115, 22, 0.16);
+      color: #fb923c;
+      border-color: rgba(249, 115, 22, 0.45);
     }
 
     .court-name-wrap {
@@ -1082,6 +1154,10 @@
         <input type="text" id="myPlayerNameInput" class="search-input" placeholder="내 이름 입력 시 내 코트 자동 강조 (예: 김랠리)" maxlength="12" autocomplete="off" />
         <button type="button" id="clearSearchBtn" class="search-clear-btn" aria-label="입력 지우기">✕</button>
       </div>
+      <div class="alert-toggle-row">
+        <span>🔔 내 차례 알림 (대기 1번 · 코트 입장 시)</span>
+        <button type="button" id="btnTurnAlertToggle" class="btn-alert-toggle" aria-pressed="false">OFF</button>
+      </div>
       <div id="myStatusBanner" class="my-status-banner"></div>
     </div>
 
@@ -1199,11 +1275,102 @@
     const todayStr = getTodayDateString();
     document.getElementById('sessionDateText').textContent = `${todayStr} 실시간 현황`;
 
-    // 검색창 & 상태 배너
+    // 검색창 & 내 차례 알림 토글 & 상태 배너
     let latestSessionData = null;
     const searchInput = document.getElementById('myPlayerNameInput');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
     const myStatusBanner = document.getElementById('myStatusBanner');
+    const btnTurnAlertToggle = document.getElementById('btnTurnAlertToggle');
+
+    let isTurnAlertEnabled = localStorage.getItem('infinite_rally_web_turn_alert') === 'on';
+    let previousAlertState = null;
+    let previousAlertQuery = '';
+    let sharedAudioCtx = null;
+
+    function getAudioContext() {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return null;
+      if (!sharedAudioCtx) {
+        sharedAudioCtx = new AudioCtx();
+      }
+      if (sharedAudioCtx.state === 'suspended') {
+        sharedAudioCtx.resume().catch(() => {});
+      }
+      return sharedAudioCtx;
+    }
+
+    function unlockAudioOnGesture() {
+      if (isTurnAlertEnabled) {
+        getAudioContext();
+      }
+    }
+    window.addEventListener('pointerdown', unlockAudioOnGesture, { once: true });
+
+    function updateTurnAlertUI() {
+      btnTurnAlertToggle.textContent = isTurnAlertEnabled ? 'ON 🔔' : 'OFF';
+      btnTurnAlertToggle.classList.toggle('active', isTurnAlertEnabled);
+      btnTurnAlertToggle.setAttribute('aria-pressed', isTurnAlertEnabled ? 'true' : 'false');
+    }
+
+    function playTurnAlert(type) {
+      try {
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+          if (type === 'enter') {
+            navigator.vibrate([200, 100, 200, 100, 300]);
+          } else if (type === 'wait1') {
+            navigator.vibrate([150, 80, 150]);
+          } else {
+            navigator.vibrate(80);
+          }
+        }
+      } catch (_) {}
+
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const freqs = type === 'enter'
+          ? [880, 1175, 1318]
+          : (type === 'wait1' ? [660, 880] : [880]);
+        const now = ctx.currentTime;
+        freqs.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + i * 0.14);
+          gain.gain.setValueAtTime(0.001, now + i * 0.14);
+          gain.gain.exponentialRampToValueAtTime(0.18, now + i * 0.14 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.14 + 0.24);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + i * 0.14);
+          osc.stop(now + i * 0.14 + 0.25);
+        });
+      } catch (_) {}
+    }
+
+    function getElapsedMinutes(startTimeStr) {
+      if (!startTimeStr || typeof startTimeStr !== 'string') return null;
+      const parts = startTimeStr.trim().split(':');
+      if (parts.length < 2) return null;
+      const h = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      if (Number.isNaN(h) || Number.isNaN(m)) return null;
+      const now = new Date();
+      let diff = (now.getHours() * 60 + now.getMinutes()) - (h * 60 + m);
+      if (diff < -720) diff += 1440; // 자정 넘김 보정
+      return Math.max(0, diff);
+    }
+
+    updateTurnAlertUI();
+
+    btnTurnAlertToggle.addEventListener('click', () => {
+      isTurnAlertEnabled = !isTurnAlertEnabled;
+      localStorage.setItem('infinite_rally_web_turn_alert', isTurnAlertEnabled ? 'on' : 'off');
+      updateTurnAlertUI();
+      if (isTurnAlertEnabled) {
+        playTurnAlert('test');
+      }
+    });
 
     const savedPlayerName = localStorage.getItem('infinite_rally_my_name') || '';
     if (savedPlayerName) {
@@ -1314,7 +1481,7 @@
     /* =========================================================
        4. 대시보드 렌더링 함수 (파스텔 테마 & 4코트 레슨/게임 분기)
        ========================================================= */
-    function renderMatchDashboard(data) {
+    function renderMatchDashboard(data, { fromSnapshot = false } = {}) {
       if (!data) return;
       latestSessionData = data;
 
@@ -1336,6 +1503,7 @@
       const stripGuestPrefix = (name) => (name || '').replace(/^G\s+/i, '').trim();
 
       let myCourtNum = null;
+      let myActiveGameId = '';
       let myFinishedCourtNum = null;
       let myWaitOrder = null;
       let myWaitDesignatedCourt = null;
@@ -1374,6 +1542,7 @@
 
             if (isMyLessonActive && myCourtNum === null) {
               myCourtNum = courtNum;
+              myActiveGameId = game.gameId || 'lesson';
               isUserInLessonActive = true;
             }
             if (isMyLessonWaiting && myLessonWaitOrder === null) {
@@ -1463,6 +1632,7 @@
           if (isMyCourt) {
             if (isInProgress && myCourtNum === null) {
               myCourtNum = courtNum;
+              myActiveGameId = game.gameId || '';
             } else if (isFinished && myFinishedCourtNum === null) {
               myFinishedCourtNum = courtNum;
             }
@@ -1527,6 +1697,11 @@
                   </div>
                 </div>`;
 
+          const elapsedMins = isInProgress ? getElapsedMinutes(game.startTime) : null;
+          const elapsedBadgeHtml = (isInProgress && game.startTime)
+            ? `<span class="elapsed-tag ${elapsedMins !== null && elapsedMins >= 20 ? 'elapsed-over' : ''}">⏱ ${game.startTime}${elapsedMins !== null ? ` · ${elapsedMins}분 경과` : ''}</span>`
+            : '';
+
           return `
             <div class="court-card ${isMyCourt && isInProgress ? 'my-court' : ''} ${isFinished ? 'court-finished' : ''}">
               <div class="court-header">
@@ -1536,7 +1711,10 @@
                   ${isMyCourt && isFinished ? '<span class="my-badge-pill" style="background: #ef4444;">종료된 경기</span>' : ''}
                   ${!isIdle && game.isFixedPair ? '<span class="fixed-pair-tag">🤝 고정 페어</span>' : ''}
                 </div>
-                <span class="court-status-tag ${statusTagClass}">${statusTagText}</span>
+                <div class="court-header-right">
+                  ${elapsedBadgeHtml}
+                  <span class="court-status-tag ${statusTagClass}">${statusTagText}</span>
+                </div>
               </div>
               <div class="court-body">
                 ${courtBodyHtml}
@@ -1632,6 +1810,8 @@
       // ----------------------------------------------------
       if (!query) {
         myStatusBanner.style.display = 'none';
+        previousAlertState = null;
+        previousAlertQuery = '';
       } else {
         myStatusBanner.style.display = 'block';
         const searchName = searchInput.value.trim();
@@ -1668,8 +1848,45 @@
           myStatusBanner.style.color = 'var(--text-muted)';
           myStatusBanner.innerHTML = `🔍 <strong>${searchName}</strong>님의 현재 진행/대기 경기가 없습니다.<br><span style="font-size:0.8rem; opacity:0.9;">다음 매칭을 기다려주세요 😊</span>`;
         }
+
+        // 내 차례 알림 평가 (실시간 Firestore 스냅샷으로 상태가 진입할 때만 진동/차임/펄스 실행)
+        let currentAlertState = 'none';
+        if (isUserInLessonActive || myCourtNum !== null) {
+          currentAlertState = `court:${myCourtNum}:${myActiveGameId}`;
+        } else if (myWaitOrder === 1 || myLessonWaitOrder === 1) {
+          currentAlertState = 'wait1';
+        }
+
+        if (
+          fromSnapshot &&
+          isTurnAlertEnabled &&
+          previousAlertQuery === query &&
+          previousAlertState !== null &&
+          currentAlertState !== previousAlertState
+        ) {
+          if (currentAlertState.startsWith('court:')) {
+            playTurnAlert('enter');
+            myStatusBanner.classList.remove('banner-alert-pulse');
+            void myStatusBanner.offsetWidth;
+            myStatusBanner.classList.add('banner-alert-pulse');
+          } else if (currentAlertState === 'wait1') {
+            playTurnAlert('wait1');
+            myStatusBanner.classList.remove('banner-alert-pulse');
+            void myStatusBanner.offsetWidth;
+            myStatusBanner.classList.add('banner-alert-pulse');
+          }
+        }
+        previousAlertState = currentAlertState;
+        previousAlertQuery = query;
       }
     }
+
+    // 30초마다 진행 중 코트 경과 시간(N분 경과)을 클라이언트 사이드에서만 갱신
+    setInterval(() => {
+      if (latestSessionData) {
+        renderMatchDashboard(latestSessionData, { fromSnapshot: false });
+      }
+    }, 30000);
 
     /* =========================================================
        5. Firebase Firestore 실시간 연동 (Spark 100% 무료)
@@ -1697,7 +1914,7 @@
         onSnapshot(sessionDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            renderMatchDashboard(data);
+            renderMatchDashboard(data, { fromSnapshot: true });
 
             const badge = document.getElementById('liveStatusBadge');
             const dot = document.getElementById('liveStatusDot');

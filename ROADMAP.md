@@ -139,9 +139,9 @@
 - [x] **코트 실수 입장 복구 옵션**: `match_tab.dart`, `app_state.dart` — 코트 `[비우기]` 팝업에 "이 팀을 대기열 1번으로 되돌리기" 옵션 추가
 
 ### 📌 Phase 7: 회원·관리자 편의 기능 확장 (0원 무과금)
-- [ ] **코트별 경과 시간 타이머 표시**: `match_tab.dart`, `web_viewer/index.html` — 시작 시각 기준 `N분 경과` 표시 및 20분 초과 시 주황 강조 (100% 클라이언트 계산)
-- [ ] **웹 전광판 "내 차례 알림"**: `web_viewer/index.html` — 내 이름 검색 상태에서 대기 1번 또는 코트 입장 전환 시 진동(`navigator.vibrate`) / Web Audio API 알림음 토글
-- [ ] **오늘의 모임 요약 리포트 복사**: `members_tab.dart`, `match_tab.dart` — 모임 종료 후 단톡방 공유용 통계 요약 원클릭 클립보드 복사
+- [x] **코트별 경과 시간 타이머 표시**: `match_tab.dart`, `web_viewer/index.html` — 시작 시각 기준 `N분 경과` 표시 및 20분 초과 시 주황 강조 (100% 클라이언트 계산)
+- [x] **웹 전광판 "내 차례 알림"**: `web_viewer/index.html` — 내 이름 검색 상태에서 대기 1번 또는 코트 입장 전환 시 진동(`navigator.vibrate`) / Web Audio API 알림음 토글
+- [x] **오늘의 모임 요약 리포트 복사**: `members_tab.dart`, `match_tab.dart` — 모임 종료 후 단톡방 공유용 통계 요약 원클릭 클립보드 복사
 
 ---
 

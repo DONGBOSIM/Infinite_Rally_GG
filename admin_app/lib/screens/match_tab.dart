@@ -1,14 +1,52 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../models/game_match.dart';
 import '../models/member.dart';
 import '../services/tts_service.dart';
+import '../widgets/summary_report_dialog.dart';
 
-class MatchTab extends StatelessWidget {
+class MatchTab extends StatefulWidget {
   const MatchTab({super.key});
 
-  static final TtsService _ttsService = TtsService();
+  @override
+  State<MatchTab> createState() => _MatchTabState();
+}
+
+class _MatchTabState extends State<MatchTab> {
+  final TtsService _ttsService = TtsService();
+  Timer? _elapsedTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _elapsedTimer?.cancel();
+    super.dispose();
+  }
+
+  int? _calcElapsedMinutes(String startTime) {
+    final trimmed = startTime.trim();
+    if (trimmed.isEmpty || !trimmed.contains(':')) return null;
+    final parts = trimmed.split(':');
+    if (parts.length < 2) return null;
+    final hour = int.tryParse(parts[0].trim());
+    final minute = int.tryParse(parts[1].trim());
+    if (hour == null || minute == null) return null;
+
+    final now = DateTime.now();
+    int diff = (now.hour * 60 + now.minute) - (hour * 60 + minute);
+    if (diff < -720) diff += 1440; // 자정 넘김 보정
+    if (diff < 0) diff = 0; // 기기 간 분 오차 보정
+    return diff;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -509,6 +547,24 @@ class MatchTab extends StatelessWidget {
               onPressed: () => _showManualMatchDialog(context, appState),
             ),
 
+            const SizedBox(height: 10),
+
+            // ⭐️ 오늘의 모임 요약 리포트 복사 버튼 (단톡방 공유용)
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: isDark ? Colors.teal.shade300 : Colors.teal.shade800,
+                side: BorderSide(color: isDark ? Colors.teal.shade600 : Colors.teal.shade400),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.summarize_outlined),
+              label: const Text(
+                '📋 오늘의 모임 요약 리포트 복사',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              onPressed: () => showTodaySummaryReportDialog(context, appState),
+            ),
+
             const SizedBox(height: 32),
           ],
         ),
@@ -605,48 +661,81 @@ class MatchTab extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 카드 상단 헤더: 1행(코트 정보 & 비우기) / 2행(진행 액션 버튼)
-            // 1행: 코트 번호 & 상태 뱃지 & 시작 시간 <---> 코트 비우기
+            // 카드 상단 헤더: 1행(코트 정보·경과 시간 & 비우기) / 2행(진행 액션 버튼)
+            // 1행: 코트 번호 & 상태 뱃지 & 시작/경과 시간 <---> 코트 비우기
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade700,
-                        borderRadius: BorderRadius.circular(6),
+                Expanded(
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade700,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '제 ${game.courtNumber} 코트',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
                       ),
-                      child: Text(
-                        '제 ${game.courtNumber} 코트',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: statusBadgeColor,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          statusBadgeText,
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: statusBadgeColor,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        statusBadgeText,
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    if (isInProgress && game.startTime.isNotEmpty) ...[
-                      const SizedBox(width: 6),
-                      Text(
-                        '시작: ${game.startTime}',
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
-                      ),
+                      if (isInProgress && game.startTime.isNotEmpty)
+                        Builder(
+                          builder: (_) {
+                            final elapsed = _calcElapsedMinutes(game.startTime);
+                            final isOver = elapsed != null && elapsed >= 20;
+                            final timeLabel = elapsed != null
+                                ? '⏱ ${game.startTime} · ${elapsed}분 경과'
+                                : '시작: ${game.startTime}';
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isOver
+                                    ? (isDark ? Colors.orange.shade900.withOpacity(0.35) : Colors.orange.shade50)
+                                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: isOver
+                                      ? Colors.orange.shade700
+                                      : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                                ),
+                              ),
+                              child: Text(
+                                timeLabel,
+                                style: TextStyle(
+                                  color: isOver
+                                      ? (isDark ? Colors.orange.shade300 : Colors.orange.shade800)
+                                      : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                                  fontSize: 11,
+                                  fontWeight: isOver ? FontWeight.bold : FontWeight.w600,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                     ],
-                  ],
+                  ),
                 ),
 
                 // 1행 우측: 코트 비우기 버튼 (선수가 배정되어 있는 경우)
-                if (!isIdle)
+                if (!isIdle) ...[
+                  const SizedBox(width: 6),
                   InkWell(
                     onTap: () {
                       showDialog(
@@ -724,6 +813,7 @@ class MatchTab extends StatelessWidget {
                       ),
                     ),
                   ),
+                ],
               ],
             ),
 

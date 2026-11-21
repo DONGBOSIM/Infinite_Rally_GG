@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import '../providers/app_state.dart';
 import '../models/member.dart';
 import '../services/ocr_service.dart';
+import '../widgets/summary_report_dialog.dart';
 
 class MembersTab extends StatefulWidget {
   const MembersTab({super.key});
@@ -137,6 +138,8 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                 }
               } else if (value == 'bulk_import') {
                 _showBulkImportDialog(context, appState);
+              } else if (value == 'summary_report') {
+                showTodaySummaryReportDialog(context, appState);
               } else if (value == 'clear_all') {
                 _showClearAllMembersDialog(context, appState);
               }
@@ -149,6 +152,16 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                     Icon(Icons.table_chart, size: 18, color: Colors.indigo),
                     SizedBox(width: 8),
                     Text('시트(엑셀) 회원 일괄 등록'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'summary_report',
+                child: Row(
+                  children: [
+                    Icon(Icons.summarize_outlined, size: 18, color: Colors.teal),
+                    SizedBox(width: 8),
+                    Text('오늘의 모임 요약 리포트 복사'),
                   ],
                 ),
               ),

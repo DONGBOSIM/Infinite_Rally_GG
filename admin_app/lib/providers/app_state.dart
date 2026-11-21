@@ -40,6 +40,10 @@ class AppState extends ChangeNotifier {
   // Phase 6 확장: 직전 파트너 연속 배정 회피용 이력 (회원ID -> 직전 파트너ID)
   final Map<String, String> _lastPartnerByMember = {};
 
+  // Phase 7 확장: 당일 요약 리포트용 완료 경기/레슨 카운터
+  int _completedGamesCount = 0;
+  int _completedLessonsCount = 0;
+
   AppState() {
     _initSampleMembers();
     loadMasterMembers();
@@ -556,6 +560,8 @@ class AppState extends ChangeNotifier {
     _waitingQueue.clear();
     _lessonQueue.clear();
     _lastPartnerByMember.clear();
+    _completedGamesCount = 0;
+    _completedLessonsCount = 0;
     _markDirty(masterChanged: true);
     notifyListeners();
   }
@@ -680,6 +686,8 @@ class AppState extends ChangeNotifier {
     _waitingQueue.clear();
     _lessonQueue.clear();
     _lastPartnerByMember.clear();
+    _completedGamesCount = 0;
+    _completedLessonsCount = 0;
 
     // 4. 모든 코트 비우기 (항상 1~4코트 idle 상태로 리셋)
     _currentGames.clear();
@@ -932,11 +940,13 @@ class AppState extends ChangeNotifier {
       game.status = 'finished';
 
       if (game.courtType == 'lesson') {
+        _completedLessonsCount++;
         for (final student in game.lessonStudents) {
           final mIdx = _members.indexWhere((m) => m.id == student.id);
           if (mIdx != -1) _members[mIdx].matchCountToday++;
         }
       } else {
+        _completedGamesCount++;
         _recordTeamPartners(game.teamA, game.teamB);
         final playerIds = [
           ...game.teamA.map((p) => p.id),
@@ -969,12 +979,15 @@ class AppState extends ChangeNotifier {
 
   // ⭐️ 현재 진행 중인 레슨 종료 (출전 횟수 1 증가 및 lessonStatus를 none으로 변경)
   void finishActiveLessons() {
+    bool hadActive = false;
     for (final member in _members) {
       if (member.isPresent && member.lessonStatus == 'active') {
         member.lessonStatus = 'none';
         member.matchCountToday++;
+        hadActive = true;
       }
     }
+    if (hadActive) _completedLessonsCount++;
     _syncLessonQueue();
     _markDirty();
     notifyListeners();
@@ -1213,6 +1226,59 @@ class AppState extends ChangeNotifier {
         matchCountToday: 0,
       );
     });
+  }
+
+  // ⭐️ 단톡방 공유용 오늘의 모임 요약 리포트 텍스트 생성 (로케일 의존 없이 안전 계산)
+  String buildTodaySummaryReport() {
+    final now = DateTime.now();
+    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    final weekdayStr = weekdays[now.weekday - 1];
+    final dateHeader = '${now.year}년 ${now.month}월 ${now.day}일 ($weekdayStr)';
+
+    final attendees = todayAttendees;
+    final guests = attendees.where((m) => m.isGuest).toList();
+    final regulars = attendees.where((m) => !m.isGuest).toList();
+    final totalPlayerGames = attendees.fold<int>(0, (sum, m) => sum + m.matchCountToday);
+    final avgGames = attendees.isNotEmpty ? (totalPlayerGames / attendees.length).toStringAsFixed(1) : '0.0';
+    final gameCount = _completedGamesCount > 0 ? _completedGamesCount : (totalPlayerGames ~/ 4);
+    final estimatedTag = (_completedGamesCount == 0 && totalPlayerGames > 0) ? ' (추정)' : '';
+
+    final playedMembers = attendees.where((m) => m.matchCountToday > 0).toList()
+      ..sort((a, b) {
+        final cmp = b.matchCountToday.compareTo(a.matchCountToday);
+        if (cmp != 0) return cmp;
+        return a.name.compareTo(b.name);
+      });
+
+    final top3 = playedMembers.take(3).toList();
+    final top3Text = top3.isEmpty
+        ? '없음'
+        : top3.map((m) => '${m.name}(${m.matchCountToday}게임)').join(', ');
+    final detailText = playedMembers.isEmpty
+        ? '기록된 출전 내역이 없습니다.'
+        : playedMembers.map((m) => '${m.name}(${m.matchCountToday})').join(', ');
+
+    final buffer = StringBuffer()
+      ..writeln('🏸 [무한랠리 배드민턴 팀] $dateHeader 모임 요약')
+      ..writeln('━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('👥 참석 인원: 총 ${attendees.length}명 (정회원 ${regulars.length}명 / 게스트 ${guests.length}명)')
+      ..writeln('🪶 콕 제출: $submittedShuttleCount명')
+      ..writeln('⚔️ 진행 경기: 총 $gameCount게임$estimatedTag · 1인 평균 $avgGames게임');
+
+    if (_completedLessonsCount > 0) {
+      buffer.writeln('🎾 완료 레슨: 총 $_completedLessonsCount회');
+    }
+
+    buffer
+      ..writeln('🏆 최다 출전 TOP 3: $top3Text')
+      ..writeln('')
+      ..writeln('📊 개인별 출전 기록:')
+      ..writeln(detailText)
+      ..writeln('━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('오늘도 수고 많으셨습니다! 🙇‍♂️')
+      ..write('🔗 전광판: $_webViewerUrl');
+
+    return buffer.toString();
   }
 
   @override
