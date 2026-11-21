@@ -183,10 +183,22 @@ class AppState extends ChangeNotifier {
   }
 
   // 4코트 레슨 모드 토글
-  void toggleLessonCourt(bool enabled) {
+  // ⭐️ 제 4코트가 일반 게임 진행 중(in_progress)일 때는 레슨 모드로 전환 불가 (반드시 게임 종료 또는 빈 코트일 때만 가능)
+  bool toggleLessonCourt(bool enabled) {
+    if (enabled) {
+      final court4 = _currentGames.firstWhere(
+        (g) => g.courtNumber == 4,
+        orElse: () => GameMatch(courtNumber: 4, gameId: '', teamA: [], teamB: [], startTime: ''),
+      );
+      if (court4.courtType != 'lesson' && court4.status == 'in_progress') {
+        return false;
+      }
+    }
+
     _isLessonCourtEnabled = enabled;
     ensureCourtsExist();
     notifyListeners();
+    return true;
   }
 
   void setLessonCoach(String coachName) {

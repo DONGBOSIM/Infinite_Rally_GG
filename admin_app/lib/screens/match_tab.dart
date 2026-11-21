@@ -134,7 +134,19 @@ class MatchTab extends StatelessWidget {
                       ),
                       value: appState.isLessonCourtEnabled,
                       activeColor: Colors.amber.shade700,
-                      onChanged: (val) => appState.toggleLessonCourt(val),
+                      onChanged: (val) {
+                        final ok = appState.toggleLessonCourt(val);
+                        if (!ok) {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('⚠️ 제 4코트에서 게임이 진행 중입니다. [게임 종료] 후에 레슨 모드로 전환할 수 있습니다.'),
+                              backgroundColor: Colors.redAccent,
+                              duration: Duration(seconds: 3),
+                            ),
+                          );
+                        }
+                      },
                     ),
                     const Divider(height: 12),
                     Row(
@@ -679,15 +691,7 @@ class MatchTab extends StatelessWidget {
                     ),
                     icon: const Icon(Icons.stop_circle_outlined, size: 15),
                     label: const Text('게임 종료', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    onPressed: () {
-                      appState.finishGame(game.courtNumber);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('제 ${game.courtNumber} 코트 게임이 종료되었습니다. [입장]을 눌러 다음 팀을 진행하세요.'),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    },
+                    onPressed: () => _confirmFinishGame(context, appState, game),
                   ),
                 ],
 
@@ -1107,6 +1111,53 @@ class MatchTab extends StatelessWidget {
               Navigator.pop(ctx);
             },
             child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // 게임 종료 확인 다이얼로그 (실수 방지용 확인 절차)
+  // ==========================================
+  void _confirmFinishGame(BuildContext context, AppState appState, GameMatch game) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.help_outline, color: Colors.orange),
+            const SizedBox(width: 8),
+            Text('제 ${game.courtNumber} 코트 게임 종료'),
+          ],
+        ),
+        content: Text(
+          '제 ${game.courtNumber} 코트의 게임을 종료하시겠습니까?\n\n'
+          '종료 시 출전 선수들의 게임 출전 횟수가 1회 기록되며, 다음 대기 팀이 [입장]할 수 있게 됩니다.',
+          style: const TextStyle(fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange.shade700,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              appState.finishGame(game.courtNumber);
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('제 ${game.courtNumber} 코트 게임이 종료되었습니다. [입장]을 눌러 다음 팀을 진행하세요.'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('게임 종료 확인'),
           ),
         ],
       ),
