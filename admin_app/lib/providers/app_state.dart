@@ -28,6 +28,15 @@ class AppState extends ChangeNotifier {
   bool _isRemoteSyncActive = false;
   bool _isLoadingMasterMembers = false;
 
+  // Phase 5 확장: 실시간 자동 동기화(Auto-Sync) & 미저장 상태 관리
+  bool _autoSyncEnabled = true;
+  bool _hasUnsyncedSession = false;
+  bool _hasUnsyncedMaster = false;
+  int _localChangeSeq = 0;
+  int _masterChangeSeq = 0;
+  Timer? _autoSyncTimer;
+  bool _isMasterLoaded = false;
+
   AppState() {
     _initSampleMembers();
     loadMasterMembers();
@@ -47,15 +56,25 @@ class AppState extends ChangeNotifier {
   int get courtCount => _courtCount;
   List<GameMatch> get currentGames => _currentGames;
 
-  // ⭐️ 대기열 큐 Getters (웹 뷰어 및 Firestore 100% 호환 Map 변환)
+  // ⭐️ 대기열 큐 Getters (웹 뷰어 및 Firestore 100% 호환 Map 변환 — 레슨 코트는 예정 코트에서 제외)
   List<Map<String, dynamic>> get upcomingGames {
+    final regularCourts = _currentGames
+        .where((g) => g.courtType != 'lesson')
+        .map((g) => g.courtNumber)
+        .toList();
+    final fallbackCourts = (_isLessonCourtEnabled && _courtCount >= 4)
+        ? (_courtCount - 1)
+        : (_courtCount > 0 ? _courtCount : 1);
+
     return _waitingQueue.asMap().entries.map((entry) {
       final idx = entry.key;
       final match = entry.value;
       return {
         'id': match.gameId,
         'order': idx + 1,
-        'designatedCourt': ((idx) % (_courtCount > 0 ? _courtCount : 1)) + 1,
+        'designatedCourt': regularCourts.isNotEmpty
+            ? regularCourts[idx % regularCourts.length]
+            : ((idx) % (fallbackCourts > 0 ? fallbackCourts : 1)) + 1,
         'teamA': match.teamA.map((m) => '${m.name} (${m.tier})').toList(),
         'teamB': match.teamB.map((m) => '${m.name} (${m.tier})').toList(),
         'teamAPlayers': match.teamA.map((m) => m.toMap()).toList(),
@@ -77,6 +96,36 @@ class AppState extends ChangeNotifier {
   String get lessonCoach => _lessonCoach;
   List<Map<String, dynamic>> get lessonQueue => _lessonQueue;
   bool get isRemoteSyncActive => _isRemoteSyncActive;
+  bool get autoSyncEnabled => _autoSyncEnabled;
+  bool get hasUnsyncedChanges => _hasUnsyncedSession || _hasUnsyncedMaster;
+
+  void _markDirty({bool masterChanged = false}) {
+    _localChangeSeq++;
+    _hasUnsyncedSession = true;
+    if (masterChanged) {
+      _masterChangeSeq++;
+      _hasUnsyncedMaster = true;
+    }
+    if (_autoSyncEnabled && _firestoreService.isFirebaseAvailable) {
+      _autoSyncTimer?.cancel();
+      _autoSyncTimer = Timer(const Duration(milliseconds: 1500), () {
+        syncToCloud(includeMaster: _hasUnsyncedMaster, silent: true);
+      });
+    }
+  }
+
+  void toggleAutoSync(bool enabled) {
+    _autoSyncEnabled = enabled;
+    if (enabled && hasUnsyncedChanges && _firestoreService.isFirebaseAvailable) {
+      _autoSyncTimer?.cancel();
+      _autoSyncTimer = Timer(const Duration(milliseconds: 500), () {
+        syncToCloud(includeMaster: _hasUnsyncedMaster, silent: true);
+      });
+    } else if (!enabled) {
+      _autoSyncTimer?.cancel();
+    }
+    notifyListeners();
+  }
 
   int get presentCount => _members.where((m) => m.isPresent).length;
   List<Member> get todayAttendees => _members.where((m) => m.isPresent).toList();
@@ -204,6 +253,7 @@ class AppState extends ChangeNotifier {
 
     _isLessonCourtEnabled = enabled;
     ensureCourtsExist();
+    _markDirty();
     notifyListeners();
     return null;
   }
@@ -211,19 +261,22 @@ class AppState extends ChangeNotifier {
   void setLessonCoach(String coachName) {
     _lessonCoach = coachName;
     ensureCourtsExist();
+    _markDirty();
     notifyListeners();
   }
 
   void setCourtCount(int count) {
-    if (count > 0 && count <= 10) {
+    if (count >= 4 && count <= 10) {
       _courtCount = count;
       ensureCourtsExist();
+      _markDirty();
       notifyListeners();
     }
   }
 
   void setNotice(String newNotice) {
     _notice = newNotice;
+    _markDirty();
     notifyListeners();
   }
 
@@ -240,31 +293,34 @@ class AppState extends ChangeNotifier {
     _sessionSubscription?.cancel();
 
     _sessionSubscription = _firestoreService.listenDailySession(todayStr).listen((session) {
-      if (session == null || _isUploading) return;
+      if (session == null || _isUploading || (_autoSyncTimer?.isActive ?? false)) return;
 
       _isRemoteSyncActive = true;
-      _currentGames = session.currentGames;
-      ensureCourtsExist();
-      _syncWaitingQueueFromRemote(session.upcomingGames);
       _notice = session.notice;
       _isLessonCourtEnabled = session.isLessonCourtEnabled;
       _lessonCoach = (session.lessonCoach == '코치님' || session.lessonCoach.isEmpty) ? '무한랠리도우미' : session.lessonCoach;
-      _lessonQueue = session.lessonQueue;
+      if (session.activeCourts.isNotEmpty) {
+        _courtCount = session.activeCourts.length < 4 ? 4 : session.activeCourts.length;
+      }
 
-      // 원격에 회원 목록이 있으면 로컬 회원 출석/경기 수 상태 동기화
+      // 원격에 회원 목록이 있으면 로컬 회원 정보(이름·급수·성별·출석·경기 수 등) 완전 동기화
       if (session.members.isNotEmpty) {
         for (final remoteM in session.members) {
           final idx = _members.indexWhere((m) => m.id == remoteM.id);
           if (idx != -1) {
-            _members[idx].isPresent = remoteM.isPresent;
-            _members[idx].matchCountToday = remoteM.matchCountToday;
-            _members[idx].hasSubmittedShuttle = remoteM.hasSubmittedShuttle;
-            _members[idx].lessonStatus = remoteM.lessonStatus;
-            _members[idx].fixedPartnerId = remoteM.fixedPartnerId;
+            _members[idx] = remoteM;
           } else {
             _members.add(remoteM);
           }
         }
+      }
+
+      _currentGames = session.currentGames;
+      _syncWaitingQueueFromRemote(session.upcomingGames);
+      ensureCourtsExist();
+
+      if (session.members.isEmpty) {
+        _lessonQueue = session.lessonQueue;
       }
 
       notifyListeners();
@@ -282,6 +338,7 @@ class AppState extends ChangeNotifier {
         _members[index].lessonStatus = 'none';
       }
       _syncLessonQueue();
+      _markDirty();
       notifyListeners();
     }
   }
@@ -295,6 +352,7 @@ class AppState extends ChangeNotifier {
       if (_members[index].hasSubmittedShuttle) {
         _members[index].isPresent = true;
       }
+      _markDirty();
       notifyListeners();
     }
   }
@@ -312,6 +370,7 @@ class AppState extends ChangeNotifier {
         _members[index].lessonStatus = 'none';
       }
       _syncLessonQueue();
+      _markDirty();
       notifyListeners();
     }
   }
@@ -339,6 +398,7 @@ class AppState extends ChangeNotifier {
       isGuest: true,
     );
     _members.add(newGuest);
+    _markDirty();
     notifyListeners();
   }
 
@@ -355,6 +415,7 @@ class AppState extends ChangeNotifier {
 
       _members[idx1].fixedPartnerId = memberId2;
       _members[idx2].fixedPartnerId = memberId1;
+      _markDirty();
       notifyListeners();
     }
   }
@@ -372,6 +433,7 @@ class AppState extends ChangeNotifier {
           _members[pIdx].fixedPartnerId = null;
         }
       }
+      _markDirty();
       notifyListeners();
     }
   }
@@ -422,6 +484,7 @@ class AppState extends ChangeNotifier {
       }
     }
 
+    _markDirty();
     notifyListeners();
   }
 
@@ -430,27 +493,56 @@ class AppState extends ChangeNotifier {
     for (final member in _members) {
       member.isPresent = present;
     }
+    _syncLessonQueue();
+    _markDirty();
     notifyListeners();
   }
 
   // 회원 추가
   void addMember(Member member) {
     _members.add(member);
+    _markDirty(masterChanged: !member.isGuest);
     notifyListeners();
   }
 
-  // 회원 정보 업데이트
+  // 회원 정보 업데이트 (코트·대기열 표시 정보도 함께 갱신)
   void updateMember(Member updated) {
     final index = _members.indexWhere((m) => m.id == updated.id);
     if (index != -1) {
       _members[index] = updated;
+      for (final game in _currentGames) {
+        for (int i = 0; i < game.teamA.length; i++) {
+          if (game.teamA[i].id == updated.id) game.teamA[i] = updated;
+        }
+        for (int i = 0; i < game.teamB.length; i++) {
+          if (game.teamB[i].id == updated.id) game.teamB[i] = updated;
+        }
+        for (int i = 0; i < game.lessonStudents.length; i++) {
+          if (game.lessonStudents[i].id == updated.id) game.lessonStudents[i] = updated;
+        }
+      }
+      for (final match in _waitingQueue) {
+        for (int i = 0; i < match.teamA.length; i++) {
+          if (match.teamA[i].id == updated.id) match.teamA[i] = updated;
+        }
+        for (int i = 0; i < match.teamB.length; i++) {
+          if (match.teamB[i].id == updated.id) match.teamB[i] = updated;
+        }
+      }
+      _syncLessonQueue();
+      _markDirty(masterChanged: !updated.isGuest);
       notifyListeners();
     }
   }
 
   // 회원 삭제
   void removeMember(String memberId) {
-    _members.removeWhere((m) => m.id == memberId);
+    final idx = _members.indexWhere((m) => m.id == memberId);
+    if (idx == -1) return;
+    final removedIsGuest = _members[idx].isGuest;
+    _members.removeAt(idx);
+    _syncLessonQueue();
+    _markDirty(masterChanged: !removedIsGuest);
     notifyListeners();
   }
 
@@ -460,6 +552,7 @@ class AppState extends ChangeNotifier {
     _currentGames.clear();
     _waitingQueue.clear();
     _lessonQueue.clear();
+    _markDirty(masterChanged: true);
     notifyListeners();
   }
 
@@ -541,6 +634,7 @@ class AppState extends ChangeNotifier {
       }
     }
 
+    _markDirty(masterChanged: true);
     notifyListeners();
     return newMembers.length;
   }
@@ -550,6 +644,7 @@ class AppState extends ChangeNotifier {
     for (final member in _members) {
       member.matchCountToday = 0;
     }
+    _markDirty();
     notifyListeners();
   }
 
@@ -559,6 +654,7 @@ class AppState extends ChangeNotifier {
     if (index != -1) {
       final newCount = _members[index].matchCountToday + delta;
       _members[index].matchCountToday = newCount < 0 ? 0 : newCount;
+      _markDirty();
       notifyListeners();
     }
   }
@@ -585,6 +681,7 @@ class AppState extends ChangeNotifier {
     if (_courtCount < 4) _courtCount = 4;
     ensureCourtsExist();
 
+    _markDirty();
     notifyListeners();
   }
 
@@ -677,6 +774,7 @@ class AppState extends ChangeNotifier {
       _currentGames.add(clearedGame);
     }
     _currentGames.sort((a, b) => a.courtNumber.compareTo(b.courtNumber));
+    _markDirty();
     notifyListeners();
   }
 
@@ -690,6 +788,7 @@ class AppState extends ChangeNotifier {
     if (newMatches.isEmpty) return 0;
 
     _waitingQueue.addAll(newMatches);
+    _markDirty();
     notifyListeners();
     return newMatches.length;
   }
@@ -712,6 +811,7 @@ class AppState extends ChangeNotifier {
       isFixedPair: false,
     );
     _waitingQueue.add(newMatch);
+    _markDirty();
     notifyListeners();
   }
 
@@ -719,6 +819,7 @@ class AppState extends ChangeNotifier {
   void removeQueueItem(int index) {
     if (index >= 0 && index < _waitingQueue.length) {
       _waitingQueue.removeAt(index);
+      _markDirty();
       notifyListeners();
     }
   }
@@ -729,6 +830,7 @@ class AppState extends ChangeNotifier {
     if (newIndex < 0 || newIndex >= _waitingQueue.length) return;
     final item = _waitingQueue.removeAt(oldIndex);
     _waitingQueue.insert(newIndex, item);
+    _markDirty();
     notifyListeners();
   }
 
@@ -758,6 +860,7 @@ class AppState extends ChangeNotifier {
         }
       }
 
+      _markDirty();
       notifyListeners();
     }
   }
@@ -771,6 +874,7 @@ class AppState extends ChangeNotifier {
       }
     }
     _syncLessonQueue();
+    _markDirty();
     notifyListeners();
   }
 
@@ -800,6 +904,7 @@ class AppState extends ChangeNotifier {
       _currentGames.sort((a, b) => a.courtNumber.compareTo(b.courtNumber));
     }
 
+    _markDirty();
     notifyListeners();
     return true;
   }
@@ -812,29 +917,32 @@ class AppState extends ChangeNotifier {
 
     try {
       final remoteList = await _firestoreService.fetchMasterMembers();
-      if (remoteList != null && remoteList.isNotEmpty) {
-        // 원격 마스터 명단 정제 (혹시 기존에 저장된 게스트가 있다면 완전히 제외)
-        final cleanRemoteList = remoteList.where((m) => !m.isGuest && !m.name.startsWith('G ')).toList();
-        // 원격 마스터 명단으로 교체하되, 현재 메모리의 출석/경기 수 상태가 있다면 보존
-        final merged = <Member>[];
-        for (final remoteM in cleanRemoteList) {
-          final localIdx = _members.indexWhere((m) => m.id == remoteM.id);
-          if (localIdx != -1) {
-            remoteM.isPresent = _members[localIdx].isPresent;
-            remoteM.hasSubmittedShuttle = _members[localIdx].hasSubmittedShuttle;
-            remoteM.matchCountToday = _members[localIdx].matchCountToday;
-            remoteM.lessonStatus = _members[localIdx].lessonStatus;
-            remoteM.fixedPartnerId = _members[localIdx].fixedPartnerId;
+      if (remoteList != null) {
+        _isMasterLoaded = true;
+        if (remoteList.isNotEmpty) {
+          // 원격 마스터 명단 정제 (혹시 기존에 저장된 게스트가 있다면 완전히 제외)
+          final cleanRemoteList = remoteList.where((m) => !m.isGuest && !m.name.startsWith('G ')).toList();
+          // 원격 마스터 명단으로 교체하되, 현재 메모리의 출석/경기 수 상태가 있다면 보존
+          final merged = <Member>[];
+          for (final remoteM in cleanRemoteList) {
+            final localIdx = _members.indexWhere((m) => m.id == remoteM.id);
+            if (localIdx != -1) {
+              remoteM.isPresent = _members[localIdx].isPresent;
+              remoteM.hasSubmittedShuttle = _members[localIdx].hasSubmittedShuttle;
+              remoteM.matchCountToday = _members[localIdx].matchCountToday;
+              remoteM.lessonStatus = _members[localIdx].lessonStatus;
+              remoteM.fixedPartnerId = _members[localIdx].fixedPartnerId;
+            }
+            merged.add(remoteM);
           }
-          merged.add(remoteM);
-        }
-        // 당일 등록된 게스트가 있다면 보존
-        for (final localM in _members) {
-          if (localM.isGuest && !merged.any((m) => m.id == localM.id)) {
-            merged.add(localM);
+          // 당일 등록된 게스트가 있다면 보존
+          for (final localM in _members) {
+            if (localM.isGuest && !merged.any((m) => m.id == localM.id)) {
+              merged.add(localM);
+            }
           }
+          _members = merged;
         }
-        _members = merged;
       }
     } catch (e) {
       // ignore: avoid_print
@@ -845,54 +953,91 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // Firestore에 오늘 매칭 데이터 및 영구 마스터 회원 명부 원스톱 업로드 (0원 무과금 최적화: 쓰기 각 1회)
-  Future<bool> syncAllToCloud() async {
-    _syncLessonQueue();
-    _isUploading = true;
-    _lastUploadMessage = null;
-    notifyListeners();
+  // Firestore에 당일 세션(및 필요 시 영구 마스터 회원 명부) 동기화 (0원 무과금 최적화)
+  Future<bool> syncToCloud({bool includeMaster = false, bool silent = false}) async {
+    _autoSyncTimer?.cancel();
+    if (_isUploading) return false;
 
     if (!_firestoreService.isFirebaseAvailable) {
-      _isUploading = false;
-      _lastUploadMessage = "Firebase 연동 전입니다 (로컬 매칭 및 QR 코드는 정상 이용 가능합니다).";
-      notifyListeners();
+      if (!silent) {
+        _lastUploadMessage = "Firebase 연동 전입니다 (로컬 매칭 및 QR 코드는 정상 이용 가능합니다).";
+        notifyListeners();
+      }
       return false;
     }
 
-    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final activeCourts = List.generate(_courtCount, (index) => index + 1);
+    final seqAtStart = _localChangeSeq;
+    final masterSeqAtStart = _masterChangeSeq;
+    final shouldSaveMaster = (includeMaster && (_isMasterLoaded || _hasUnsyncedMaster)) || _hasUnsyncedMaster;
 
-    final session = DailySession(
-      sessionDate: todayStr,
-      title: "무한랠리 ${DateFormat('M월 d일').format(DateTime.now())} 정기모임",
-      activeCourts: activeCourts,
-      currentGames: _currentGames,
-      upcomingGames: upcomingGames,
-      notice: _notice,
-      updatedAt: DateTime.now(),
-      isLessonCourtEnabled: _isLessonCourtEnabled,
-      lessonCoach: _lessonCoach,
-      lessonQueue: _lessonQueue,
-      members: _members,
-    );
-
-    // 당일 세션과 영구 마스터 회원 명부를 원스톱으로 저장
-    final sessionSuccess = await _firestoreService.uploadDailySession(session);
-    // ⭐️ 영구 마스터 회원 DB에는 게스트를 100% 제외하고 순수 정식 회원만 영구 보존!
-    final regularMembersOnly = regularMembers;
-    final masterSuccess = await _firestoreService.saveMasterMembers(regularMembersOnly);
-
-    final success = sessionSuccess && masterSuccess;
-    _isUploading = false;
-    _lastUploadMessage = success
-        ? "회원 명부 및 경기 매칭이 클라우드에 성공적으로 동기화되었습니다!"
-        : (sessionSuccess
-            ? "세션은 동기화되었으나 회원 명부 저장을 확인해주세요."
-            : "업로드 실패: 네트워크 또는 Firebase 설정을 확인해주세요.");
+    _syncLessonQueue();
+    _isUploading = true;
+    if (!silent) _lastUploadMessage = null;
     notifyListeners();
 
-    return success;
+    bool sessionSuccess = false;
+    bool masterSuccess = !shouldSaveMaster;
+
+    try {
+      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final activeCourts = List.generate(_courtCount, (index) => index + 1);
+
+      final session = DailySession(
+        sessionDate: todayStr,
+        title: "무한랠리 ${DateFormat('M월 d일').format(DateTime.now())} 정기모임",
+        activeCourts: activeCourts,
+        currentGames: _currentGames,
+        upcomingGames: upcomingGames,
+        notice: _notice,
+        updatedAt: DateTime.now(),
+        isLessonCourtEnabled: _isLessonCourtEnabled,
+        lessonCoach: _lessonCoach,
+        lessonQueue: _lessonQueue,
+        members: _members,
+      );
+
+      // 당일 세션 저장
+      sessionSuccess = await _firestoreService.uploadDailySession(session);
+      // ⭐️ 영구 마스터 회원 DB는 정회원 명부 변경 또는 마스터 로드 완료 후 명시적 전체 동기화 시에만 저장 (샘플 덮어쓰기 방지 & 게스트 제외)
+      if (shouldSaveMaster) {
+        final regularMembersOnly = regularMembers;
+        masterSuccess = await _firestoreService.saveMasterMembers(regularMembersOnly);
+      }
+
+      if (sessionSuccess && _localChangeSeq == seqAtStart) {
+        _hasUnsyncedSession = false;
+      }
+      if (shouldSaveMaster && masterSuccess && _masterChangeSeq == masterSeqAtStart) {
+        _hasUnsyncedMaster = false;
+      }
+
+      // 업로드 도중 추가 로컬 변경이 발생한 경우 재동기화 예약
+      if (_localChangeSeq != seqAtStart && _autoSyncEnabled) {
+        _autoSyncTimer?.cancel();
+        _autoSyncTimer = Timer(const Duration(milliseconds: 1000), () {
+          syncToCloud(includeMaster: _hasUnsyncedMaster, silent: true);
+        });
+      }
+    } finally {
+      _isUploading = false;
+      final success = sessionSuccess && masterSuccess;
+      if (!silent) {
+        _lastUploadMessage = success
+            ? (shouldSaveMaster
+                ? "회원 명부 및 경기 매칭이 클라우드에 성공적으로 동기화되었습니다!"
+                : "경기 매칭이 클라우드에 성공적으로 동기화되었습니다!")
+            : (sessionSuccess
+                ? "세션은 동기화되었으나 회원 명부 저장을 확인해주세요."
+                : "업로드 실패: 네트워크 또는 Firebase 설정을 확인해주세요.");
+      }
+      notifyListeners();
+    }
+
+    return sessionSuccess && masterSuccess;
   }
+
+  // Firestore에 오늘 매칭 데이터 및 영구 마스터 회원 명부 원스톱 업로드 (수동 전체 동기화)
+  Future<bool> syncAllToCloud() => syncToCloud(includeMaster: true, silent: false);
 
   // 하위 호환용 uploadToFirestore
   Future<bool> uploadToFirestore() => syncAllToCloud();
@@ -932,6 +1077,7 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    _autoSyncTimer?.cancel();
     _sessionSubscription?.cancel();
     super.dispose();
   }

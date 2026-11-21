@@ -61,8 +61,29 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
             )
           else
             IconButton(
-              icon: const Icon(Icons.cloud_upload_outlined),
-              tooltip: '클라우드 DB 동기화 (회원 명부 & 출석)',
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.cloud_upload_outlined),
+                  if (appState.hasUnsyncedChanges)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 9,
+                        height: 9,
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade700,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.2),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              tooltip: appState.hasUnsyncedChanges
+                  ? '미저장 변경사항 있음 · 클릭하여 클라우드 DB 동기화'
+                  : '클라우드 DB 동기화 (회원 명부 & 출석)',
               onPressed: () async {
                 final ok = await appState.syncAllToCloud();
                 if (context.mounted) {
@@ -232,14 +253,17 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                       ),
                     ],
                   ),
-                  if (appState.isRemoteSyncActive)
+                  if (appState.hasUnsyncedChanges || appState.isRemoteSyncActive)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.green.shade600,
+                        color: appState.hasUnsyncedChanges ? Colors.orange.shade700 : Colors.green.shade600,
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text('실시간 연동중', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        appState.hasUnsyncedChanges ? '미저장 ●' : '실시간 연동중',
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
                     ),
                 ],
               ),
@@ -681,6 +705,7 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
             itemBuilder: (context, index) {
               final member = filteredMembers[index];
               return ListTile(
+                onTap: () => _showEditMemberDialog(context, appState, member),
                 leading: CircleAvatar(
                   backgroundColor: _getTierColor(member.tier),
                   child: Text(
@@ -690,9 +715,12 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                 ),
                 title: Row(
                   children: [
-                    Text(
-                      member.displayName,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                    Flexible(
+                      child: Text(
+                        member.displayName,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -751,10 +779,26 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                             onPressed: () => appState.toggleAttendance(member.id),
                           ),
                     const SizedBox(width: 4),
-                    IconButton(
-                      icon: Icon(Icons.delete_outline, size: 20, color: Colors.red.shade300),
-                      tooltip: '회원 삭제',
-                      onPressed: () => _confirmDeleteMember(context, appState, member),
+                    SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: Icon(Icons.edit_outlined, size: 19, color: isDark ? Colors.blue.shade300 : Colors.indigo.shade400),
+                        tooltip: '회원 정보 수정',
+                        onPressed: () => _showEditMemberDialog(context, appState, member),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: Icon(Icons.delete_outline, size: 19, color: Colors.red.shade300),
+                        tooltip: '회원 삭제',
+                        onPressed: () => _confirmDeleteMember(context, appState, member),
+                      ),
                     ),
                   ],
                 ),
@@ -1365,6 +1409,129 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                 }
               },
               child: const Text('등록'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // 기존 정회원 정보(이름·급수·성별) 수정 다이얼로그
+  // ==========================================
+  void _showEditMemberDialog(BuildContext context, AppState appState, Member member) {
+    final nameCtrl = TextEditingController(text: member.name);
+    const tiers = ['S', 'A', 'B', 'C', 'D', 'E'];
+    String selectedTier = member.tier.toUpperCase();
+    if (!tiers.contains(selectedTier)) {
+      selectedTier = 'E';
+    }
+    String selectedGender = member.gender == 'F' ? 'F' : 'M';
+
+    showDialog(
+      context: context,
+      builder: (dlgCtx) => StatefulBuilder(
+        builder: (dlgInnerCtx, setDlgState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.edit, color: Colors.indigo),
+              SizedBox(width: 8),
+              Text('회원 정보 수정', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('이름:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: InputDecoration(
+                    hintText: '회원 이름 입력',
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text('성별:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ChoiceChip(
+                        label: const Center(child: Text('남성 (M)')),
+                        selected: selectedGender == 'M',
+                        selectedColor: Colors.blue.withAlpha(50),
+                        onSelected: (val) {
+                          if (val) setDlgState(() => selectedGender = 'M');
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ChoiceChip(
+                        label: const Center(child: Text('여성 (F)')),
+                        selected: selectedGender == 'F',
+                        selectedColor: Colors.pink.withAlpha(50),
+                        onSelected: (val) {
+                          if (val) setDlgState(() => selectedGender = 'F');
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Text('급수:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  children: tiers.map((tier) {
+                    final isSel = selectedTier == tier;
+                    return ChoiceChip(
+                      label: Text(tier),
+                      selected: isSel,
+                      selectedColor: Colors.indigo.withAlpha(50),
+                      onSelected: (val) {
+                        if (val) setDlgState(() => selectedTier = tier);
+                      },
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dlgCtx),
+              child: const Text('취소'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                final trimmedName = nameCtrl.text.trim();
+                if (trimmedName.isEmpty) return;
+
+                final updated = member.copyWith(
+                  name: trimmedName,
+                  tier: selectedTier,
+                  gender: selectedGender,
+                );
+                appState.updateMember(updated);
+                Navigator.pop(dlgCtx);
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('\'${updated.name}\' (${updated.tier}조) 회원 정보가 수정되었습니다.'),
+                    backgroundColor: Colors.green.shade700,
+                  ),
+                );
+              },
+              child: const Text('저장'),
             ),
           ],
         ),

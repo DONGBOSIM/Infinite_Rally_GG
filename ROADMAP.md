@@ -121,14 +121,14 @@
 - [x] `web_viewer/index.html`: 내 이름 검색 및 코트 하이라이트 기능 추가
 
 ### 📌 Phase 5: 현장 안정성 강화 & 숨은 버그 수정 (최우선)
-- [ ] **실시간 자동 동기화(Auto-Sync) & 미저장 알림**: `app_state.dart`, `match_tab.dart`, `members_tab.dart` — 1~2초 디바운스 자동 동기화 ON/OFF 스위치 및 미동기화 변경사항 알림 뱃지 추가
-- [ ] **다중 관리자 동기화 순서 보정**: `app_state.dart` — `initRealtimeSync()`에서 원격 `_isLessonCourtEnabled` 반영 후 `ensureCourtsExist()` 호출하도록 순서 수정
-- [ ] **웹 전광판 표시 버그 3종 수정**: `web_viewer/index.html`, `app_state.dart`
+- [x] **실시간 자동 동기화(Auto-Sync) & 미저장 알림**: `app_state.dart`, `match_tab.dart`, `members_tab.dart` — 1~2초 디바운스 자동 동기화 ON/OFF 스위치 및 미동기화 변경사항 알림 뱃지 추가
+- [x] **다중 관리자 동기화 순서 보정**: `app_state.dart` — `initRealtimeSync()`에서 원격 `_isLessonCourtEnabled` 반영 후 `ensureCourtsExist()` 호출하도록 순서 수정
+- [x] **웹 전광판 표시 버그 3종 수정**: `web_viewer/index.html`, `app_state.dart`
   - `finished`(게임 종료) 상태 별도 표시 및 종료 코트 선수 검색 시 `'출전 중'` 오표시 수정
   - 게스트 `[G] G 이름` 중복 `G` 태그 표기 제거
   - 4코트 레슨 모드일 때 대기열의 `'4코트 예정'` 오표시 수정
-- [ ] **회원 정보 수정 UI 연동**: `members_tab.dart` — `[전체 회원]` 탭에서 이름·급수·성별 수정 다이얼로그 추가 (기존 `updateMember()` 연동)
-- [ ] **UI/문구 잔재 정리**: `qr_tab.dart`의 구 `GitHub Pages` 안내 문구를 Firebase Hosting 기준으로 변경, `match_tab.dart` 코트 수 `-` 버튼 최소값(4코트) 일치
+- [x] **회원 정보 수정 UI 연동**: `members_tab.dart` — `[전체 회원]` 탭에서 이름·급수·성별 수정 다이얼로그 추가 (기존 `updateMember()` 연동)
+- [x] **UI/문구 잔재 정리**: `qr_tab.dart`의 구 `GitHub Pages` 안내 문구를 Firebase Hosting 기준으로 변경, `match_tab.dart` 코트 수 `-` 버튼 최소값(4코트) 일치
 
 ### 📌 Phase 6: 체육관 운영 UX 고도화 (편의성 개선)
 - [ ] **대기열 팀 편집(`[수정 ✏️]`) 기능**: `match_tab.dart`, `app_state.dart` — 대기열 카드에서 선수 1명 교체 및 Team A/B 간 자리 스왑

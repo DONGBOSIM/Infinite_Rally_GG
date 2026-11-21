@@ -94,18 +94,18 @@ class QrTab extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey.shade300),
+                border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.link, size: 20, color: Colors.grey),
+                  Icon(Icons.link, size: 20, color: isDark ? Colors.grey.shade400 : Colors.grey),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       webUrl,
-                      style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+                      style: TextStyle(fontSize: 12, color: isDark ? Colors.blue.shade200 : Colors.blueGrey),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -147,14 +147,14 @@ class QrTab extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'GitHub Pages로 배포된 web_viewer의 웹 주소를 입력하세요:',
+              'Firebase Hosting으로 배포된 웹 전광판 주소를 입력하세요:',
               style: TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: ctrl,
               decoration: const InputDecoration(
-                hintText: 'https://<username>.github.io/<repo>/web_viewer/',
+                hintText: 'https://infinite-rally-gg.web.app/',
                 border: OutlineInputBorder(),
               ),
             ),

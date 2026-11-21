@@ -22,16 +22,28 @@ class MatchTab extends StatelessWidget {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('게임 매칭 및 코트 관리'),
-            if (appState.isRemoteSyncActive) ...[
+            const Flexible(
+              child: Text(
+                '게임 매칭 및 코트 관리',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (appState.isUploading || appState.hasUnsyncedChanges || appState.isRemoteSyncActive) ...[
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.green.shade600,
+                  color: appState.isUploading
+                      ? Colors.teal.shade600
+                      : (appState.hasUnsyncedChanges ? Colors.orange.shade700 : Colors.green.shade600),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text('동기화중', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                child: Text(
+                  appState.isUploading
+                      ? '동기화중...'
+                      : (appState.hasUnsyncedChanges ? '미저장 ●' : '동기화됨'),
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ],
@@ -102,7 +114,8 @@ class MatchTab extends StatelessWidget {
                           children: [
                             IconButton(
                               icon: const Icon(Icons.remove_circle_outline),
-                              onPressed: appState.courtCount > 1
+                              tooltip: '코트 줄이기 (최소 4코트)',
+                              onPressed: appState.courtCount > 4
                                   ? () => appState.setCourtCount(appState.courtCount - 1)
                                   : null,
                             ),
@@ -147,6 +160,21 @@ class MatchTab extends StatelessWidget {
                           );
                         }
                       },
+                    ),
+                    const Divider(height: 12),
+                    SwitchListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('실시간 자동 동기화 (Auto-Sync)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: Text(
+                        appState.autoSyncEnabled
+                            ? '변경 시 자동 업로드되어 웹 전광판에 즉시 반영됩니다.'
+                            : '수동 모드: 하단 업로드 버튼을 눌러야 반영됩니다.',
+                        style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                      ),
+                      value: appState.autoSyncEnabled,
+                      activeColor: Colors.teal.shade600,
+                      onChanged: (val) => appState.toggleAutoSync(val),
                     ),
                     const Divider(height: 12),
                     Row(
@@ -493,18 +521,22 @@ class MatchTab extends StatelessWidget {
         ),
         child: ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.teal.shade700,
+            backgroundColor: appState.hasUnsyncedChanges ? Colors.orange.shade700 : Colors.teal.shade700,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           icon: appState.isUploading
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Icon(Icons.cloud_upload),
+              : Icon(appState.hasUnsyncedChanges ? Icons.cloud_upload : Icons.cloud_done),
           label: FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              appState.isUploading ? 'Firestore 동기화 중...' : '웹 전광판 실시간 업로드 (DB 동기화)',
+              appState.isUploading
+                  ? 'Firestore 동기화 중...'
+                  : (appState.hasUnsyncedChanges
+                      ? '미저장 변경사항 있음 · 지금 웹 전광판 업로드'
+                      : '웹 전광판 실시간 업로드 (최신 동기화됨 ✓)'),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               maxLines: 1,
             ),
