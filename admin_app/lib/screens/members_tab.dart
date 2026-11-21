@@ -18,9 +18,12 @@ class MembersTab extends StatefulWidget {
 class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final OcrService _ocrService = OcrService();
+  final TextEditingController _todaySearchCtrl = TextEditingController();
 
   String _searchQuery = '';
   String _selectedTierFilter = '전체';
+  String _todaySearchQuery = '';
+  String _todayFilter = '전체';
   bool _isOcrProcessing = false;
 
   @override
@@ -31,6 +34,7 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    _todaySearchCtrl.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -209,10 +213,28 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
   }
 
   // ==========================================
-  // 탭 1: 오늘 참여자 화면 (콕 제출, 레슨 토글, OCR)
+  // 탭 1: 오늘 참여자 화면 (콕 제출, 레슨 토글, 검색·필터, OCR)
   // ==========================================
   Widget _buildTodayAttendeesTab(BuildContext context, AppState appState, bool isDark) {
     final attendees = appState.todayAttendees;
+    final filteredAttendees = attendees.where((m) {
+      if (_todaySearchQuery.isNotEmpty) {
+        final q = _todaySearchQuery.trim().toLowerCase();
+        if (!m.name.toLowerCase().contains(q) && !m.displayName.toLowerCase().contains(q)) {
+          return false;
+        }
+      }
+      if (_todayFilter == '콕 미제출') return !m.hasSubmittedShuttle;
+      if (_todayFilter == '레슨') return m.isLessonAny;
+      return true;
+    }).toList();
+
+    if (_todayFilter == '경기수 적은순') {
+      filteredAttendees.sort((a, b) => a.matchCountToday.compareTo(b.matchCountToday));
+    }
+
+    final unsubmittedCount = attendees.where((m) => !m.hasSubmittedShuttle).length;
+    final lessonAnyCount = attendees.where((m) => m.isLessonAny).length;
 
     return Column(
       children: [
@@ -307,6 +329,66 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
           ),
         ),
 
+        // 오늘 참여자 이름 검색 & 상태 필터 바
+        if (attendees.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : Colors.grey.shade50,
+              border: Border(bottom: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200)),
+            ),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _todaySearchCtrl,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: '참여자 이름 검색...',
+                    prefixIcon: const Icon(Icons.search, size: 18),
+                    suffixIcon: _todaySearchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            onPressed: () {
+                              _todaySearchCtrl.clear();
+                              setState(() => _todaySearchQuery = '');
+                            },
+                          )
+                        : null,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onChanged: (val) => setState(() => _todaySearchQuery = val),
+                ),
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final entry in [
+                          ('전체', '전체 (${attendees.length})'),
+                          ('콕 미제출', '콕 미제출 ($unsubmittedCount)'),
+                          ('레슨', '레슨 ($lessonAnyCount)'),
+                          ('경기수 적은순', '경기수 적은순'),
+                        ])
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: ChoiceChip(
+                              label: Text(entry.$2, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                              selected: _todayFilter == entry.$1,
+                              visualDensity: VisualDensity.compact,
+                              onSelected: (_) => setState(() => _todayFilter = entry.$1),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         // 오늘 참여자 리스트
         Expanded(
           child: attendees.isEmpty
@@ -326,12 +408,34 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                     ],
                   ),
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: attendees.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final member = attendees[index];
+              : (filteredAttendees.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.filter_alt_off, size: 40, color: Colors.grey.shade400),
+                          const SizedBox(height: 8),
+                          const Text('조건에 맞는 참여자가 없습니다.', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                          const SizedBox(height: 8),
+                          OutlinedButton(
+                            onPressed: () {
+                              _todaySearchCtrl.clear();
+                              setState(() {
+                                _todaySearchQuery = '';
+                                _todayFilter = '전체';
+                              });
+                            },
+                            child: const Text('필터 초기화'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: filteredAttendees.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final member = filteredAttendees[index];
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       child: Column(
@@ -635,7 +739,7 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                       ),
                     );
                   },
-                ),
+                )),
         ),
       ],
     );
@@ -885,12 +989,13 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
     final selectedMemberIds = Set<String>.from(currentMatchedMembers.map((m) => m.id));
     final matchedOriginalNames = Map<String, String>.from(result.matchedOriginalNames);
     final newlyAddedMemberIds = <String>{};
+    final newlyAddedGuestIds = <String>{};
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (dlgInnerCtx, setDialogState) => AlertDialog(
           title: const Row(
             children: [
               Icon(Icons.document_scanner, color: Colors.indigo),
@@ -961,13 +1066,26 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                       final orig = matchedOriginalNames[m.id];
                       final isOmitted = orig != null && orig != m.name;
                       final isNew = newlyAddedMemberIds.contains(m.id);
+                      final isNewGuest = newlyAddedGuestIds.contains(m.id);
                       return CheckboxListTile(
                         dense: true,
                         contentPadding: EdgeInsets.zero,
                         title: Row(
                           children: [
-                            Text('${m.name} (${m.tier}조)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                            if (isNew) ...[
+                            Flexible(
+                              child: Text('${m.name} (${m.tier}조)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                            ),
+                            if (isNewGuest) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withAlpha(40),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text('게스트 등록', style: TextStyle(fontSize: 10, color: Colors.amber, fontWeight: FontWeight.bold)),
+                              ),
+                            ] else if (isNew) ...[
                               const SizedBox(width: 6),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -1016,7 +1134,7 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text('※ 회원 명단에 없는 인원입니다. [회원 등록]을 누르면 즉시 상단 참석 목록으로 이동합니다.',
+                    Text('※ 회원 명단에 없는 인원입니다. [게스트 등록] 또는 [회원 등록] 시 상단 참석 목록으로 이동합니다.',
                         style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
                     const SizedBox(height: 8),
                     ...currentUnmatched.map((cand) {
@@ -1024,73 +1142,117 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                       final genderColor = cand.gender == 'F' ? Colors.pink : Colors.blue;
                       return Container(
                         margin: const EdgeInsets.only(bottom: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         decoration: BoxDecoration(
                           color: isDark ? Colors.grey.shade800.withAlpha(120) : Colors.orange.shade50.withAlpha(100),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.orange.withAlpha(80)),
                         ),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(cand.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                        decoration: BoxDecoration(
-                                          color: genderColor.withAlpha(30),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Text(genderStr, style: TextStyle(fontSize: 10, color: genderColor, fontWeight: FontWeight.bold)),
-                                      ),
-                                    ],
+                            Row(
+                              children: [
+                                Text(cand.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: genderColor.withAlpha(30),
+                                    borderRadius: BorderRadius.circular(4),
                                   ),
-                                  if (cand.region.isNotEmpty) ...[
-                                    const SizedBox(height: 2),
-                                    Text('지역: ${cand.region}', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-                                  ],
+                                  child: Text(genderStr, style: TextStyle(fontSize: 10, color: genderColor, fontWeight: FontWeight.bold)),
+                                ),
+                                if (cand.region.isNotEmpty) ...[
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      '지역: ${cand.region}',
+                                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
                                 ],
-                              ),
+                              ],
                             ),
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                minimumSize: const Size(0, 30),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
-                              icon: const Icon(Icons.person_add, size: 14),
-                              label: const Text('회원 등록'),
-                              onPressed: () {
-                                _showQuickRegisterMemberFromOcrDialog(
-                                  context: context,
-                                  candidate: cand,
-                                  onRegistered: (newMember) {
-                                    appState.addMember(newMember);
-                                    setDialogState(() {
-                                      currentUnmatched.remove(cand);
-                                      currentMatchedMembers.add(newMember);
-                                      selectedMemberIds.add(newMember.id);
-                                      newlyAddedMemberIds.add(newMember.id);
-                                      matchedOriginalNames[newMember.id] = cand.name;
-                                    });
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('${newMember.name} 님이 회원으로 등록되어 상단 참석 목록에 추가되었습니다!'),
-                                        backgroundColor: Colors.green,
-                                        duration: const Duration(seconds: 2),
-                                      ),
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.amber.shade800,
+                                    side: BorderSide(color: Colors.amber.shade700),
+                                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                                    minimumSize: const Size(0, 30),
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                  icon: const Icon(Icons.person_outline, size: 14),
+                                  label: const Text('게스트 등록'),
+                                  onPressed: () {
+                                    _showQuickRegisterGuestFromOcrDialog(
+                                      context: context,
+                                      candidate: cand,
+                                      onRegistered: (newGuest) {
+                                        appState.addMember(newGuest);
+                                        setDialogState(() {
+                                          currentUnmatched.remove(cand);
+                                          currentMatchedMembers.add(newGuest);
+                                          selectedMemberIds.add(newGuest.id);
+                                          newlyAddedGuestIds.add(newGuest.id);
+                                          matchedOriginalNames[newGuest.id] = cand.name;
+                                        });
+                                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('${newGuest.name} 게스트로 등록되어 상단 참석 목록에 추가되었습니다!'),
+                                            backgroundColor: Colors.amber.shade800,
+                                            duration: const Duration(seconds: 2),
+                                          ),
+                                        );
+                                      },
                                     );
                                   },
-                                );
-                              },
+                                ),
+                                const SizedBox(width: 8),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.orange,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                                    minimumSize: const Size(0, 30),
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                  icon: const Icon(Icons.person_add, size: 14),
+                                  label: const Text('회원 등록'),
+                                  onPressed: () {
+                                    _showQuickRegisterMemberFromOcrDialog(
+                                      context: context,
+                                      candidate: cand,
+                                      onRegistered: (newMember) {
+                                        appState.addMember(newMember);
+                                        setDialogState(() {
+                                          currentUnmatched.remove(cand);
+                                          currentMatchedMembers.add(newMember);
+                                          selectedMemberIds.add(newMember.id);
+                                          newlyAddedMemberIds.add(newMember.id);
+                                          matchedOriginalNames[newMember.id] = cand.name;
+                                        });
+                                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('${newMember.name} 님이 회원으로 등록되어 상단 참석 목록에 추가되었습니다!'),
+                                            backgroundColor: Colors.green,
+                                            duration: const Duration(seconds: 2),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -1260,59 +1422,206 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
   }
 
   // ==========================================
+  // OCR 미등록 인원 간편 게스트 등록 다이얼로그
+  // ==========================================
+  void _showQuickRegisterGuestFromOcrDialog({
+    required BuildContext context,
+    required ParsedAttendeeCandidate candidate,
+    required ValueChanged<Member> onRegistered,
+  }) {
+    final nameCtrl = TextEditingController(text: candidate.name);
+    String selectedGender = candidate.gender;
+    String selectedTier = 'C';
+    bool submitShuttle = true;
+    const tiers = ['S', 'A', 'B', 'C', 'D', 'E'];
+
+    showDialog(
+      context: context,
+      builder: (dlgCtx) => StatefulBuilder(
+        builder: (dlgInnerCtx, setDlgState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.person_outline, color: Colors.amber.shade800),
+              const SizedBox(width: 8),
+              const Text('당일 게스트 등록', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('이름 (G 접두사는 자동 부여됩니다):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: nameCtrl,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: '게스트 이름 입력',
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text('성별:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ChoiceChip(
+                        label: const Center(child: Text('남성 (M)')),
+                        selected: selectedGender == 'M',
+                        selectedColor: Colors.blue.withAlpha(50),
+                        onSelected: (val) {
+                          if (val) setDlgState(() => selectedGender = 'M');
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ChoiceChip(
+                        label: const Center(child: Text('여성 (F)')),
+                        selected: selectedGender == 'F',
+                        selectedColor: Colors.pink.withAlpha(50),
+                        onSelected: (val) {
+                          if (val) setDlgState(() => selectedGender = 'F');
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Text('추정 급수:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  children: tiers.map((tier) {
+                    final isSel = selectedTier == tier;
+                    return ChoiceChip(
+                      label: Text(tier),
+                      selected: isSel,
+                      selectedColor: Colors.amber.withAlpha(60),
+                      onSelected: (val) {
+                        if (val) setDlgState(() => selectedTier = tier);
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 6),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: const Text('콕 제출 완료로 바로 등록', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                  subtitle: const Text('체크 시 즉시 게임 매칭 대상에 포함됩니다.', style: TextStyle(fontSize: 11)),
+                  value: submitShuttle,
+                  onChanged: (val) => setDlgState(() => submitShuttle = val ?? true),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dlgCtx),
+              child: const Text('취소'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber.shade800,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                final clean = nameCtrl.text.trim();
+                if (clean.isEmpty) return;
+                final formattedName = clean.startsWith('G ') ? clean : 'G $clean';
+
+                final newGuest = Member(
+                  id: 'guest_${DateTime.now().millisecondsSinceEpoch}_${clean.hashCode}',
+                  name: formattedName,
+                  tier: selectedTier,
+                  gender: selectedGender,
+                  isPresent: true,
+                  hasSubmittedShuttle: submitShuttle,
+                  isGuest: true,
+                  matchCountToday: 0,
+                );
+
+                Navigator.pop(dlgCtx);
+                onRegistered(newGuest);
+              },
+              child: const Text('게스트 등록'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
   // 게스트 간편 추가 다이얼로그
   // ==========================================
   void _showAddGuestDialog(BuildContext context, AppState appState) {
     final nameCtrl = TextEditingController();
     String selectedTier = 'C';
     String selectedGender = 'M';
+    bool submitShuttle = true;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (dlgInnerCtx, setDialogState) => AlertDialog(
           title: const Text('게스트(비회원) 간편 등록'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: '게스트 이름',
-                  hintText: '이름 입력 (G 접두사는 자동 부여됨)',
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: '게스트 이름',
+                    hintText: '이름 입력 (G 접두사는 자동 부여됨)',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Text('추정 급수: '),
-                  const SizedBox(width: 8),
-                  DropdownButton<String>(
-                    value: selectedTier,
-                    items: ['S', 'A', 'B', 'C', 'D', 'E']
-                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                        .toList(),
-                    onChanged: (val) {
-                      if (val != null) setDialogState(() => selectedTier = val);
-                    },
-                  ),
-                  const Spacer(),
-                  const Text('성별: '),
-                  const SizedBox(width: 8),
-                  DropdownButton<String>(
-                    value: selectedGender,
-                    items: const [
-                      DropdownMenuItem(value: 'M', child: Text('남')),
-                      DropdownMenuItem(value: 'F', child: Text('여')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setDialogState(() => selectedGender = val);
-                    },
-                  ),
-                ],
-              ),
-            ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text('추정 급수: '),
+                    const SizedBox(width: 8),
+                    DropdownButton<String>(
+                      value: selectedTier,
+                      items: ['S', 'A', 'B', 'C', 'D', 'E']
+                          .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                          .toList(),
+                      onChanged: (val) {
+                        if (val != null) setDialogState(() => selectedTier = val);
+                      },
+                    ),
+                    const Spacer(),
+                    const Text('성별: '),
+                    const SizedBox(width: 8),
+                    DropdownButton<String>(
+                      value: selectedGender,
+                      items: const [
+                        DropdownMenuItem(value: 'M', child: Text('남')),
+                        DropdownMenuItem(value: 'F', child: Text('여')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setDialogState(() => selectedGender = val);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: const Text('콕 제출 완료로 바로 등록', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  subtitle: const Text('체크 시 즉시 게임 매칭 대상에 포함됩니다.', style: TextStyle(fontSize: 11)),
+                  value: submitShuttle,
+                  onChanged: (val) => setDialogState(() => submitShuttle = val ?? true),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
@@ -1324,8 +1633,10 @@ class _MembersTabState extends State<MembersTab> with SingleTickerProviderStateM
                     name: name,
                     tier: selectedTier,
                     gender: selectedGender,
+                    hasSubmittedShuttle: submitShuttle,
                   );
                   Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('게스트 "$name"님이 오늘 참여자로 등록되었습니다.')),
                   );

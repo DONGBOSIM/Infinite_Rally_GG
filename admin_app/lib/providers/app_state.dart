@@ -37,6 +37,9 @@ class AppState extends ChangeNotifier {
   Timer? _autoSyncTimer;
   bool _isMasterLoaded = false;
 
+  // Phase 6 확장: 직전 파트너 연속 배정 회피용 이력 (회원ID -> 직전 파트너ID)
+  final Map<String, String> _lastPartnerByMember = {};
+
   AppState() {
     _initSampleMembers();
     loadMasterMembers();
@@ -552,6 +555,7 @@ class AppState extends ChangeNotifier {
     _currentGames.clear();
     _waitingQueue.clear();
     _lessonQueue.clear();
+    _lastPartnerByMember.clear();
     _markDirty(masterChanged: true);
     notifyListeners();
   }
@@ -675,6 +679,7 @@ class AppState extends ChangeNotifier {
     // 3. 대기열 및 레슨 대기열 비우기
     _waitingQueue.clear();
     _lessonQueue.clear();
+    _lastPartnerByMember.clear();
 
     // 4. 모든 코트 비우기 (항상 1~4코트 idle 상태로 리셋)
     _currentGames.clear();
@@ -778,13 +783,72 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _recordTeamPartners(List<Member> teamA, List<Member> teamB) {
+    if (teamA.length >= 2) {
+      _lastPartnerByMember[teamA[0].id] = teamA[1].id;
+      _lastPartnerByMember[teamA[1].id] = teamA[0].id;
+    }
+    if (teamB.length >= 2) {
+      _lastPartnerByMember[teamB[0].id] = teamB[1].id;
+      _lastPartnerByMember[teamB[1].id] = teamB[0].id;
+    }
+  }
+
+  Map<String, Set<String>> _buildRecentPartnerMap() {
+    final map = <String, Set<String>>{};
+    void linkPair(String id1, String id2) {
+      if (id1.isEmpty || id2.isEmpty || id1 == id2) return;
+      map.putIfAbsent(id1, () => <String>{}).add(id2);
+      map.putIfAbsent(id2, () => <String>{}).add(id1);
+    }
+
+    _lastPartnerByMember.forEach((id1, id2) => linkPair(id1, id2));
+    for (final game in _currentGames) {
+      if (game.courtType != 'lesson') {
+        if (game.teamA.length >= 2) linkPair(game.teamA[0].id, game.teamA[1].id);
+        if (game.teamB.length >= 2) linkPair(game.teamB[0].id, game.teamB[1].id);
+      }
+    }
+    return map;
+  }
+
+  // ⭐️ 특정 선수의 현재 활동 상태 조회 (수동 매칭/대기열 수정 시 상태 뱃지용)
+  String? getPlayerActivityTag(String memberId, {int? excludeQueueIndex}) {
+    for (final game in _currentGames) {
+      if (game.status == 'in_progress') {
+        if (game.courtType == 'lesson') {
+          if (game.lessonStudents.any((s) => s.id == memberId)) {
+            return '${game.courtNumber}코트 레슨중';
+          }
+        } else {
+          if (game.teamA.any((m) => m.id == memberId) ||
+              game.teamB.any((m) => m.id == memberId)) {
+            return '${game.courtNumber}코트 게임중';
+          }
+        }
+      }
+    }
+    for (int i = 0; i < _waitingQueue.length; i++) {
+      if (excludeQueueIndex != null && i == excludeQueueIndex) continue;
+      final match = _waitingQueue[i];
+      if (match.teamA.any((m) => m.id == memberId) ||
+          match.teamB.any((m) => m.id == memberId)) {
+        return '대기 ${i + 1}번';
+      }
+    }
+    return null;
+  }
+
   // ⭐️ [공평 자동 매칭 생성] -> 코트의 진행 중 게임을 절대 건드리지 않고 '대기열(Queue)'에 추가!
   int addAutoMatchesToQueue() {
     _syncLessonQueue();
     final availables = availableMembersForQueue;
     if (availables.length < 4) return 0;
 
-    final newMatches = MatchingService.createBalancedMatchesForQueue(availables);
+    final newMatches = MatchingService.createBalancedMatchesForQueue(
+      availables,
+      recentPartnerMap: _buildRecentPartnerMap(),
+    );
     if (newMatches.isEmpty) return 0;
 
     _waitingQueue.addAll(newMatches);
@@ -811,6 +875,29 @@ class AppState extends ChangeNotifier {
       isFixedPair: false,
     );
     _waitingQueue.add(newMatch);
+    _markDirty();
+    notifyListeners();
+  }
+
+  // ⭐️ 대기열 항목 팀 구성 수정 (선수 교체 / 팀 스왑)
+  void updateQueueItem(
+    int index, {
+    required List<Member> teamA,
+    required List<Member> teamB,
+  }) {
+    if (index < 0 || index >= _waitingQueue.length) return;
+    final existing = _waitingQueue[index];
+    final hasFixed = (teamA.length >= 2 && teamA[0].fixedPartnerId == teamA[1].id) ||
+        (teamB.length >= 2 && teamB[0].fixedPartnerId == teamB[1].id);
+    _waitingQueue[index] = GameMatch(
+      courtNumber: 0,
+      gameId: existing.gameId,
+      teamA: List<Member>.from(teamA),
+      teamB: List<Member>.from(teamB),
+      status: 'waiting',
+      startTime: existing.startTime,
+      isFixedPair: hasFixed,
+    );
     _markDirty();
     notifyListeners();
   }
@@ -850,6 +937,7 @@ class AppState extends ChangeNotifier {
           if (mIdx != -1) _members[mIdx].matchCountToday++;
         }
       } else {
+        _recordTeamPartners(game.teamA, game.teamB);
         final playerIds = [
           ...game.teamA.map((p) => p.id),
           ...game.teamB.map((p) => p.id),
@@ -865,6 +953,20 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  // ⭐️ 레슨 대기자 원클릭 입장 (지정 ID 또는 첫 번째 대기자)
+  Member? startNextWaitingLesson({String? memberId}) {
+    final idx = memberId != null
+        ? _members.indexWhere((m) => m.isPresent && m.lessonStatus == 'waiting' && m.id == memberId)
+        : _members.indexWhere((m) => m.isPresent && m.lessonStatus == 'waiting');
+    if (idx == -1) return null;
+
+    _members[idx].lessonStatus = 'active';
+    _syncLessonQueue();
+    _markDirty();
+    notifyListeners();
+    return _members[idx];
+  }
+
   // ⭐️ 현재 진행 중인 레슨 종료 (출전 횟수 1 증가 및 lessonStatus를 none으로 변경)
   void finishActiveLessons() {
     for (final member in _members) {
@@ -876,6 +978,43 @@ class AppState extends ChangeNotifier {
     _syncLessonQueue();
     _markDirty();
     notifyListeners();
+  }
+
+  // ⭐️ 코트 실수 입장 복구: 현재 코트의 팀을 대기열 1번으로 되돌리고 코트를 빈 코트로 리셋
+  bool returnCourtToWaitingQueueFront(int courtNumber) {
+    final gameIndex = _currentGames.indexWhere((g) => g.courtNumber == courtNumber);
+    if (gameIndex == -1) return false;
+    final game = _currentGames[gameIndex];
+    if (game.courtType == 'lesson' || (game.teamA.isEmpty && game.teamB.isEmpty)) {
+      return false;
+    }
+
+    final restoredMatch = GameMatch(
+      courtNumber: 0,
+      gameId: game.gameId.isNotEmpty && !game.gameId.startsWith('idle_')
+          ? game.gameId
+          : 'wait_${DateTime.now().millisecondsSinceEpoch}',
+      teamA: List<Member>.from(game.teamA),
+      teamB: List<Member>.from(game.teamB),
+      status: 'waiting',
+      startTime: DateFormat('HH:mm').format(DateTime.now()),
+      isFixedPair: game.isFixedPair,
+    );
+    _waitingQueue.insert(0, restoredMatch);
+
+    _currentGames[gameIndex] = GameMatch(
+      courtNumber: courtNumber,
+      gameId: 'idle_$courtNumber',
+      teamA: [],
+      teamB: [],
+      status: 'idle',
+      startTime: '',
+      courtType: 'game',
+    );
+    _currentGames.sort((a, b) => a.courtNumber.compareTo(b.courtNumber));
+    _markDirty();
+    notifyListeners();
+    return true;
   }
 
   // ⭐️ 코트 라이프사이클 2단계: [입장] (대기 1번 팀 입장 -> in_progress로 전이, 대기열 순번 자동 전진)
@@ -895,6 +1034,7 @@ class AppState extends ChangeNotifier {
       startTime: nowStr,
       isFixedPair: nextMatch.isFixedPair,
     );
+    _recordTeamPartners(enteredGame.teamA, enteredGame.teamB);
 
     final idx = _currentGames.indexWhere((g) => g.courtNumber == courtNumber);
     if (idx != -1) {

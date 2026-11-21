@@ -201,6 +201,63 @@ void main() {
       expect(matches.first.teamA.length, 2);
       expect(matches.first.teamB.length, 2);
     });
+
+    test('남 4명·여 4명 동률 시 3:1 성별 불균형을 피하고 혼복(남+여 vs 남+여)을 우선 편성한다', () {
+      final members = [
+        Member(id: 'm1', name: '남1', tier: 'B', gender: 'M', isPresent: true, hasSubmittedShuttle: true),
+        Member(id: 'm2', name: '남2', tier: 'B', gender: 'M', isPresent: true, hasSubmittedShuttle: true),
+        Member(id: 'f1', name: '여1', tier: 'B', gender: 'F', isPresent: true, hasSubmittedShuttle: true),
+        Member(id: 'f2', name: '여2', tier: 'B', gender: 'F', isPresent: true, hasSubmittedShuttle: true),
+      ];
+
+      final matches = MatchingService.createBalancedMatchesForQueue(members);
+      expect(matches.length, 1);
+      final game = matches.first;
+      final aMales = game.teamA.where((m) => m.gender == 'M').length;
+      final bMales = game.teamB.where((m) => m.gender == 'M').length;
+      expect(aMales, 1);
+      expect(bMales, 1);
+
+      final eightMembers = [
+        ...members,
+        Member(id: 'm3', name: '남3', tier: 'C', gender: 'M', isPresent: true, hasSubmittedShuttle: true),
+        Member(id: 'm4', name: '남4', tier: 'C', gender: 'M', isPresent: true, hasSubmittedShuttle: true),
+        Member(id: 'f3', name: '여3', tier: 'C', gender: 'F', isPresent: true, hasSubmittedShuttle: true),
+        Member(id: 'f4', name: '여4', tier: 'C', gender: 'F', isPresent: true, hasSubmittedShuttle: true),
+      ];
+      final twoMatches = MatchingService.createBalancedMatchesForQueue(eightMembers);
+      expect(twoMatches.length, 2);
+      for (final g in twoMatches) {
+        final groupMales = [...g.teamA, ...g.teamB].where((m) => m.gender == 'M').length;
+        expect(groupMales == 1 || groupMales == 3, false);
+      }
+    });
+
+    test('직전 파트너 이력이 전달되면 동일 급수 4인에서 연속 동일 파트너 배정을 회피한다', () {
+      final members = [
+        Member(id: '1', name: '선수1', tier: 'B', gender: 'M', isPresent: true, hasSubmittedShuttle: true),
+        Member(id: '2', name: '선수2', tier: 'B', gender: 'M', isPresent: true, hasSubmittedShuttle: true),
+        Member(id: '3', name: '선수3', tier: 'B', gender: 'M', isPresent: true, hasSubmittedShuttle: true),
+        Member(id: '4', name: '선수4', tier: 'B', gender: 'M', isPresent: true, hasSubmittedShuttle: true),
+      ];
+
+      final recentPartnerMap = <String, Set<String>>{
+        '1': {'2'},
+        '2': {'1'},
+        '3': {'4'},
+        '4': {'3'},
+      };
+
+      final matches = MatchingService.createBalancedMatchesForQueue(
+        members,
+        recentPartnerMap: recentPartnerMap,
+      );
+      expect(matches.length, 1);
+      final game = matches.first;
+      final sameOldPairA = game.teamA.any((m) => m.id == '1') && game.teamA.any((m) => m.id == '2');
+      final sameOldPairB = game.teamB.any((m) => m.id == '1') && game.teamB.any((m) => m.id == '2');
+      expect(sameOldPairA || sameOldPairB, false);
+    });
   });
 }
 

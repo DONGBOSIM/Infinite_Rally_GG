@@ -363,10 +363,17 @@ class MatchTab extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              // 순서 위/아래 이동 및 삭제 버튼
+                              // 수정 및 순서 위/아래 이동 및 삭제 버튼
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.indigo),
+                                    tooltip: '팀 구성 수정 (선수 교체/스왑)',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                    onPressed: () => _showEditQueueMatchDialog(context, appState, index),
+                                  ),
                                   IconButton(
                                     icon: const Icon(Icons.arrow_upward, size: 16),
                                     tooltip: '순서 위로 이동',
@@ -646,19 +653,47 @@ class MatchTab extends StatelessWidget {
                         context: context,
                         builder: (ctx) => AlertDialog(
                           title: Text('제 ${game.courtNumber} 코트 비우기'),
-                          content: Text('제 ${game.courtNumber} 코트의 게임을 취소하고 빈 코트로 리셋할까요?'),
+                          content: Text(
+                            isInProgress
+                                ? '제 ${game.courtNumber} 코트의 게임을 어떻게 처리할까요?\n\n'
+                                    '• 대기열 1번 복귀: 실수로 입장한 팀을 다시 대기 1번으로 되돌립니다.\n'
+                                    '• 비우기: 게임을 취소하고 빈 코트로 리셋합니다.'
+                                : '제 ${game.courtNumber} 코트의 종료 기록을 지우고 빈 코트로 리셋할까요?',
+                          ),
                           actions: [
                             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+                            if (isInProgress)
+                              OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.indigo,
+                                  side: const BorderSide(color: Colors.indigo),
+                                ),
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  final returned = appState.returnCourtToWaitingQueueFront(game.courtNumber);
+                                  if (returned) {
+                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('제 ${game.courtNumber} 코트 팀이 대기열 1번으로 되돌려졌습니다.'),
+                                        backgroundColor: Colors.indigo,
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: const Text('대기열 1번 복귀'),
+                              ),
                             ElevatedButton(
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
                               onPressed: () {
                                 Navigator.pop(ctx);
                                 appState.clearCourt(game.courtNumber);
+                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text('제 ${game.courtNumber} 코트가 비워졌습니다.')),
                                 );
                               },
-                              child: const Text('비우기', style: TextStyle(color: Colors.white)),
+                              child: const Text('비우기'),
                             ),
                           ],
                         ),
@@ -960,38 +995,66 @@ class MatchTab extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // 액션 버튼: [호명 📢], [레슨 종료]
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    foregroundColor: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
-                    side: BorderSide(color: isDark ? Colors.amber.shade700 : Colors.amber.shade400),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                  ),
-                  icon: const Icon(Icons.volume_up, size: 14),
-                  label: const Text('호명 📢', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  onPressed: () => _ttsService.speakCourt(game),
-                ),
-                if (activeStudents.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple.shade700,
-                      foregroundColor: Colors.white,
+            // 액션 버튼: [호명 📢], [다음 레슨 입장], [레슨 종료]
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      foregroundColor: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
+                      side: BorderSide(color: isDark ? Colors.amber.shade700 : Colors.amber.shade400),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                     ),
-                    icon: const Icon(Icons.check_circle_outlined, size: 15),
-                    label: const Text('레슨 종료', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    onPressed: () => _confirmFinishLesson(context, appState, activeStudents),
+                    icon: const Icon(Icons.volume_up, size: 14),
+                    label: const Text('호명 📢', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () => _ttsService.speakCourt(game),
                   ),
+                  if (waitingStudents.isNotEmpty)
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber.shade700,
+                        foregroundColor: Colors.white,
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      ),
+                      icon: const Icon(Icons.login, size: 14),
+                      label: const Text('다음 레슨 입장', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      onPressed: () {
+                        final started = appState.startNextWaitingLesson();
+                        if (started != null) {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('${started.name}님이 레슨 진행 상태로 입장했습니다!'),
+                              backgroundColor: Colors.purple.shade700,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  if (activeStudents.isNotEmpty)
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple.shade700,
+                        foregroundColor: Colors.white,
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      ),
+                      icon: const Icon(Icons.check_circle_outlined, size: 15),
+                      label: const Text('레슨 종료', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      onPressed: () => _confirmFinishLesson(context, appState, activeStudents),
+                    ),
                 ],
-              ],
+              ),
             ),
 
             const Divider(height: 16),
@@ -1013,9 +1076,12 @@ class MatchTab extends StatelessWidget {
               children: [
                 const Icon(Icons.hourglass_top, size: 14, color: Colors.orange),
                 const SizedBox(width: 4),
-                Text(
-                  '레슨 대기 순번 (${waitingStudents.length}명 대기):',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.orange),
+                Expanded(
+                  child: Text(
+                    '레슨 대기 순번 (${waitingStudents.length}명 대기 · 터치 시 입장):',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.orange),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
@@ -1025,12 +1091,30 @@ class MatchTab extends StatelessWidget {
             else
               Wrap(
                 spacing: 6,
+                runSpacing: 4,
                 children: waitingStudents.asMap().entries.map((entry) {
                   final idx = entry.key;
                   final s = entry.value;
-                  return Chip(
-                    label: Text('${idx + 1}번: ${s.name}', style: const TextStyle(fontSize: 11)),
-                    visualDensity: VisualDensity.compact,
+                  return Tooltip(
+                    message: '${s.name}님 바로 레슨 입장',
+                    child: ActionChip(
+                      avatar: const Icon(Icons.login, size: 13, color: Colors.orange),
+                      label: Text('${idx + 1}번: ${s.name}', style: const TextStyle(fontSize: 11)),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        final started = appState.startNextWaitingLesson(memberId: s.id);
+                        if (started != null) {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('${started.name}님이 레슨 진행 상태로 입장했습니다!'),
+                              backgroundColor: Colors.purple.shade700,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      },
+                    ),
                   );
                 }).toList(),
               ),
@@ -1041,69 +1125,144 @@ class MatchTab extends StatelessWidget {
   }
 
   // ==========================================
-  // 수동 대기 매칭 추가 다이얼로그
+  // 수동 대기 매칭 추가 / 대기열 팀 편집 공용 다이얼로그
   // ==========================================
   void _showManualMatchDialog(BuildContext context, AppState appState) {
-    // 콕 제출한 오늘 참여자 중 선택 가능한 회원 목록
-    final availableCandidates = appState.todayAttendees
-        .where((m) => m.hasSubmittedShuttle && m.lessonStatus == 'none')
-        .toList();
+    _showMatchTeamEditorDialog(context, appState);
+  }
 
-    if (availableCandidates.length < 4) {
+  void _showEditQueueMatchDialog(BuildContext context, AppState appState, int queueIndex) {
+    _showMatchTeamEditorDialog(context, appState, editQueueIndex: queueIndex);
+  }
+
+  void _showMatchTeamEditorDialog(
+    BuildContext context,
+    AppState appState, {
+    int? editQueueIndex,
+  }) {
+    final isEdit = editQueueIndex != null;
+    if (isEdit && (editQueueIndex < 0 || editQueueIndex >= appState.waitingQueue.length)) {
+      return;
+    }
+
+    // 후보 풀 구성 (고유 ID 보장 + 편집 시 기존 팀원 포함 + 쉬고 있는 인원 최상단 정렬)
+    final candidateMap = <String, Member>{};
+    for (final m in appState.todayAttendees) {
+      if (m.hasSubmittedShuttle && m.lessonStatus == 'none') {
+        candidateMap[m.id] = m;
+      }
+    }
+
+    GameMatch? targetMatch;
+    if (isEdit) {
+      final queueIdx = editQueueIndex!;
+      targetMatch = appState.waitingQueue[queueIdx];
+      for (final m in [...targetMatch.teamA, ...targetMatch.teamB]) {
+        final memIdx = appState.members.indexWhere((mem) => mem.id == m.id);
+        final latest = memIdx != -1 ? appState.members[memIdx] : m;
+        candidateMap.putIfAbsent(latest.id, () => latest);
+      }
+    }
+
+    if (candidateMap.length < 4) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('수동 매칭을 위해 콕을 제출한 회원이 최소 4명 이상 필요합니다. (현재 콕 제출: ${availableCandidates.length}명)')),
+        SnackBar(content: Text('매칭 편성을 위해 콕을 제출한 회원이 최소 4명 이상 필요합니다. (현재: ${candidateMap.length}명)')),
       );
       return;
     }
 
-    Member? pA1 = availableCandidates.isNotEmpty ? availableCandidates[0] : null;
-    Member? pA2 = availableCandidates.length > 1 ? availableCandidates[1] : null;
-    Member? pB1 = availableCandidates.length > 2 ? availableCandidates[2] : null;
-    Member? pB2 = availableCandidates.length > 3 ? availableCandidates[3] : null;
+    final candidates = candidateMap.values.toList();
+    final activityById = <String, String?>{};
+    for (final m in candidates) {
+      activityById[m.id] = appState.getPlayerActivityTag(
+        m.id,
+        excludeQueueIndex: editQueueIndex,
+      );
+    }
+
+    candidates.sort((a, b) {
+      final aBusy = activityById[a.id] != null;
+      final bBusy = activityById[b.id] != null;
+      if (aBusy != bBusy) return aBusy ? 1 : -1; // 쉬고 있는 인원 최상단
+      final matchCmp = a.matchCountToday.compareTo(b.matchCountToday);
+      if (matchCmp != 0) return matchCmp;
+      return a.name.compareTo(b.name);
+    });
+
+    Member? pA1;
+    Member? pA2;
+    Member? pB1;
+    Member? pB2;
+
+    if (targetMatch != null) {
+      pA1 = targetMatch.teamA.isNotEmpty ? candidateMap[targetMatch.teamA[0].id] : null;
+      pA2 = targetMatch.teamA.length > 1 ? candidateMap[targetMatch.teamA[1].id] : null;
+      pB1 = targetMatch.teamB.isNotEmpty ? candidateMap[targetMatch.teamB[0].id] : null;
+      pB2 = targetMatch.teamB.length > 1 ? candidateMap[targetMatch.teamB[1].id] : null;
+    } else {
+      pA1 = candidates.isNotEmpty ? candidates[0] : null;
+      pA2 = candidates.length > 1 ? candidates[1] : null;
+      pB1 = candidates.length > 2 ? candidates[2] : null;
+      pB2 = candidates.length > 3 ? candidates[3] : null;
+    }
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDlgState) {
+        builder: (dlgInnerCtx, setDlgState) {
           final selectedIds = {pA1?.id, pA2?.id, pB1?.id, pB2?.id}.whereType<String>().toSet();
           final isComplete = selectedIds.length == 4;
+          final allChosen = pA1 != null && pA2 != null && pB1 != null && pB2 != null;
 
           Widget buildPlayerDropdown(String label, Member? current, ValueChanged<Member?> onChanged) {
+            final currentValue = (current != null && candidateMap.containsKey(current.id)) ? current.id : null;
             return DropdownButtonFormField<String>(
-              value: current?.id,
+              value: currentValue,
+              isExpanded: true,
               decoration: InputDecoration(
                 labelText: label,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              items: availableCandidates.map((m) {
-                final isDuplicate = selectedIds.contains(m.id) && m.id != current?.id;
+              items: candidates.map((m) {
+                final isDuplicate = selectedIds.contains(m.id) && m.id != currentValue;
+                final activity = activityById[m.id];
+                final statusPrefix = activity == null ? '🟢 ' : '⚠️ ';
+                final activitySuffix = activity != null ? ' [$activity]' : '';
                 return DropdownMenuItem<String>(
                   value: m.id,
                   enabled: !isDuplicate,
                   child: Text(
-                    '${m.name} (${m.tier}조 / ${m.matchCountToday}경기)${isDuplicate ? ' (선택됨)' : ''}',
+                    '$statusPrefix${m.name} (${m.tier}·${m.matchCountToday}게임)$activitySuffix${isDuplicate ? ' (선택됨)' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: isDuplicate ? Colors.grey : null,
-                      fontSize: 13,
+                      color: isDuplicate ? Colors.grey : (activity != null ? Colors.orange.shade800 : null),
+                      fontSize: 12.5,
                     ),
                   ),
                 );
               }).toList(),
               onChanged: (val) {
                 if (val == null) return;
-                final found = availableCandidates.firstWhere((m) => m.id == val);
-                onChanged(found);
+                final found = candidateMap[val];
+                if (found != null) onChanged(found);
               },
             );
           }
 
           return AlertDialog(
-            title: const Row(
+            title: Row(
               children: [
-                Icon(Icons.edit_note, color: Colors.indigo),
-                SizedBox(width: 8),
-                Text('수동 대기 매칭 편성', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Icon(isEdit ? Icons.edit : Icons.edit_note, color: Colors.indigo),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isEdit ? '대기 ${editQueueIndex! + 1}번 팀 수정' : '수동 대기 매칭 편성',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
             content: SingleChildScrollView(
@@ -1111,14 +1270,57 @@ class MatchTab extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Team A와 Team B에 출전할 4명의 선수를 지정합니다.', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  const SizedBox(height: 12),
+                  Text(
+                    isEdit
+                        ? '선수를 교체하거나 아래 스왑 버튼으로 팀을 바꿀 수 있습니다.'
+                        : '🟢 쉬고 있는 인원이 상단에 우선 표시됩니다.',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 10),
                   const Text('Team A (2명):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blue)),
                   const SizedBox(height: 6),
                   buildPlayerDropdown('Team A 선수 1', pA1, (m) => setDlgState(() => pA1 = m)),
                   const SizedBox(height: 8),
                   buildPlayerDropdown('Team A 선수 2', pA2, (m) => setDlgState(() => pA2 = m)),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
+                  if (allChosen)
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        ActionChip(
+                          visualDensity: VisualDensity.compact,
+                          label: const Text('🔄 A2↔B1', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          onPressed: () => setDlgState(() {
+                            final tmp = pA2;
+                            pA2 = pB1;
+                            pB1 = tmp;
+                          }),
+                        ),
+                        ActionChip(
+                          visualDensity: VisualDensity.compact,
+                          label: const Text('🔄 A2↔B2', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          onPressed: () => setDlgState(() {
+                            final tmp = pA2;
+                            pA2 = pB2;
+                            pB2 = tmp;
+                          }),
+                        ),
+                        ActionChip(
+                          visualDensity: VisualDensity.compact,
+                          label: const Text('⇄ A/B 교대', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          onPressed: () => setDlgState(() {
+                            final tmp1 = pA1;
+                            final tmp2 = pA2;
+                            pA1 = pB1;
+                            pA2 = pB2;
+                            pB1 = tmp1;
+                            pB2 = tmp2;
+                          }),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 10),
                   const Text('Team B (2명):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.pink)),
                   const SizedBox(height: 6),
                   buildPlayerDropdown('Team B 선수 1', pB1, (m) => setDlgState(() => pB1 = m)),
@@ -1136,20 +1338,33 @@ class MatchTab extends StatelessWidget {
                 ),
                 onPressed: isComplete
                     ? () {
-                        appState.addManualMatchToQueue(
-                          teamA: [pA1!, pA2!],
-                          teamB: [pB1!, pB2!],
-                        );
+                        if (isEdit) {
+                          appState.updateQueueItem(
+                            editQueueIndex!,
+                            teamA: [pA1!, pA2!],
+                            teamB: [pB1!, pB2!],
+                          );
+                        } else {
+                          appState.addManualMatchToQueue(
+                            teamA: [pA1!, pA2!],
+                            teamB: [pB1!, pB2!],
+                          );
+                        }
                         Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('수동 편성된 매칭이 대기열에 추가되었습니다!'),
+                          SnackBar(
+                            content: Text(
+                              isEdit
+                                  ? '대기 ${editQueueIndex! + 1}번 팀 구성이 수정되었습니다!'
+                                  : '수동 편성된 매칭이 대기열에 추가되었습니다!',
+                            ),
                             backgroundColor: Colors.green,
                           ),
                         );
                       }
                     : null,
-                child: const Text('대기열에 추가'),
+                child: Text(isEdit ? '수정 저장' : '대기열에 추가'),
               ),
             ],
           );
