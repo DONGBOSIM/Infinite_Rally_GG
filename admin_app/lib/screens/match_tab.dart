@@ -282,87 +282,158 @@ class MatchTab extends StatelessWidget {
                     margin: const EdgeInsets.only(bottom: 8),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          CircleAvatar(
-                            radius: 14,
-                            backgroundColor: isFirst
-                                ? Colors.amber.shade700
-                                : (isDark ? const Color(0xFF334155) : Colors.grey.shade400),
-                            child: Text(
-                              '$orderNum',
-                              style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    if (isFirst) ...[
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                        decoration: BoxDecoration(
-                                          color: Colors.amber.shade700,
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: const Text('다음 입장 순번 🚀', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                                      ),
-                                      const SizedBox(width: 6),
-                                    ],
-                                    Text(
-                                      '대기 $orderNum번',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: isFirst ? Colors.amber.shade900 : Colors.grey.shade600,
-                                      ),
+                          // 상단: 순번 아바타 + 배지 + 우측 순서조정/삭제 버튼
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 12,
+                                    backgroundColor: isFirst
+                                        ? Colors.amber.shade700
+                                        : (isDark ? const Color(0xFF334155) : Colors.grey.shade400),
+                                    child: Text(
+                                      '$orderNum',
+                                      style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold),
                                     ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  if (isFirst) ...[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.shade700,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text('다음 입장 순번 🚀', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ),
+                                    const SizedBox(width: 6),
                                   ],
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  '${(wait['teamA'] as List).join(', ')}  VS  ${(wait['teamB'] as List).join(', ')}',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : Colors.black87,
+                                  Text(
+                                    '대기 $orderNum번',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isFirst ? Colors.amber.shade900 : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              // 순서 위/아래 이동 및 삭제 버튼
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_upward, size: 16),
+                                    tooltip: '순서 위로 이동',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                    onPressed: index > 0 ? () => appState.moveQueueItem(index, index - 1) : null,
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_downward, size: 16),
+                                    tooltip: '순서 아래로 이동',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                    onPressed: index < upcomingGames.length - 1 ? () => appState.moveQueueItem(index, index + 1) : null,
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, size: 17, color: Colors.redAccent),
+                                    tooltip: '대기열에서 취소',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                    onPressed: () {
+                                      appState.removeQueueItem(index);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('대기 경기 매칭이 취소되었습니다.'), duration: Duration(seconds: 1)),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+
+                          // 코트처럼 좌(Team A) / 우(Team B) 분할 표시
+                          Row(
+                            children: [
+                              // Team A 박스
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF0C2844) : Colors.blue.shade50,
+                                    border: Border.all(color: isDark ? Colors.blue.shade800 : Colors.blue.shade200),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Team A 🩵',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.blue.shade300 : Colors.blue.shade700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        (wait['teamA'] as List).join('\n'),
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.blue.shade100 : Colors.blue.shade900,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                          // 순서 위/아래 이동 및 삭제 버튼
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.arrow_upward, size: 16),
-                                tooltip: '순서 위로 이동',
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                onPressed: index > 0 ? () => appState.moveQueueItem(index, index - 1) : null,
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.arrow_downward, size: 16),
-                                tooltip: '순서 아래로 이동',
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                onPressed: index < upcomingGames.length - 1 ? () => appState.moveQueueItem(index, index + 1) : null,
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 6),
+                                child: Text('VS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.grey)),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                                tooltip: '대기열에서 취소',
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                onPressed: () {
-                                  appState.removeQueueItem(index);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('대기 경기 매칭이 취소되었습니다.'), duration: Duration(seconds: 1)),
-                                  );
-                                },
+                              // Team B 박스
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF3B162A) : Colors.red.shade50,
+                                    border: Border.all(color: isDark ? Colors.red.shade800 : Colors.red.shade200),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        'Team B 🩷',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.pink.shade300 : Colors.red.shade700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        (wait['teamB'] as List).join('\n'),
+                                        textAlign: TextAlign.end,
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.pink.shade100 : Colors.red.shade900,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
                           ),

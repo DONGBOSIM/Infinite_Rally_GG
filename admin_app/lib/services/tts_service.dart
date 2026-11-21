@@ -42,12 +42,22 @@ class TtsService {
     }
   }
 
+  /// 음성 호명용 이름 전처리 (게스트 'G ' 또는 'G' 접두사 제거)
+  /// 예: 'G 나나' -> '나나', 'G 심동보' -> '심동보'
+  String _cleanSpokenName(String rawName) {
+    var name = rawName.trim();
+    if (name.startsWith(RegExp(r'^[Gg]\s*')) && name.length > 1) {
+      name = name.replaceFirst(RegExp(r'^[Gg]\s*'), '').trim();
+    }
+    return name;
+  }
+
   /// 사용자 지정 형식 안내 멘트 생성:
   /// 예: "1코트, 윤서브, 장스윙, 노크로스, 서하이 입장해주세요."
   String buildCallMessage(GameMatch game) {
     if (game.courtType == 'lesson') {
       if (game.lessonStudents.isNotEmpty) {
-        final names = game.lessonStudents.map((s) => s.name).join(', ');
+        final names = game.lessonStudents.map((s) => _cleanSpokenName(s.name)).join(', ');
         return '${game.courtNumber}코트, $names 레슨 입장해주세요.';
       } else {
         return '${game.courtNumber}코트, 레슨 코트로 입장해주세요.';
@@ -58,7 +68,7 @@ class TtsService {
     if (players.isEmpty) {
       return '${game.courtNumber}코트 입장해주세요.';
     }
-    final playerNames = players.map((p) => p.name).join(', ');
+    final playerNames = players.map((p) => _cleanSpokenName(p.name)).join(', ');
     return '${game.courtNumber}코트, $playerNames 입장해주세요.';
   }
 
