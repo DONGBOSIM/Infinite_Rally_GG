@@ -135,14 +135,14 @@ class MatchTab extends StatelessWidget {
                       value: appState.isLessonCourtEnabled,
                       activeColor: Colors.amber.shade700,
                       onChanged: (val) {
-                        final ok = appState.toggleLessonCourt(val);
-                        if (!ok) {
+                        final errorMsg = appState.toggleLessonCourt(val);
+                        if (errorMsg != null) {
                           ScaffoldMessenger.of(context).hideCurrentSnackBar();
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('⚠️ 제 4코트에서 게임이 진행 중입니다. [게임 종료] 후에 레슨 모드로 전환할 수 있습니다.'),
+                            SnackBar(
+                              content: Text(errorMsg),
                               backgroundColor: Colors.redAccent,
-                              duration: Duration(seconds: 3),
+                              duration: const Duration(seconds: 3),
                             ),
                           );
                         }
@@ -925,6 +925,43 @@ class MatchTab extends StatelessWidget {
                 ),
               ],
             ),
+
+            const SizedBox(height: 8),
+
+            // 액션 버튼: [호명 📢], [레슨 종료]
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    foregroundColor: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
+                    side: BorderSide(color: isDark ? Colors.amber.shade700 : Colors.amber.shade400),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                  icon: const Icon(Icons.volume_up, size: 14),
+                  label: const Text('호명 📢', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  onPressed: () => _ttsService.speakCourt(game),
+                ),
+                if (activeStudents.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple.shade700,
+                      foregroundColor: Colors.white,
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                    icon: const Icon(Icons.check_circle_outlined, size: 15),
+                    label: const Text('레슨 종료', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () => _confirmFinishLesson(context, appState, activeStudents),
+                  ),
+                ],
+              ],
+            ),
+
             const Divider(height: 16),
             const Text('🎾 현재 레슨 참여자:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
             const SizedBox(height: 4),
@@ -1158,6 +1195,54 @@ class MatchTab extends StatelessWidget {
               );
             },
             child: const Text('게임 종료 확인'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // 레슨 종료 확인 다이얼로그 (실수 방지용 확인 절차)
+  // ==========================================
+  void _confirmFinishLesson(BuildContext context, AppState appState, List<Member> activeStudents) {
+    final names = activeStudents.map((s) => s.name).join(', ');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.sports_tennis, color: Colors.purple),
+            SizedBox(width: 8),
+            Text('레슨 종료 확인'),
+          ],
+        ),
+        content: Text(
+          '현재 레슨 진행 중인 $names 회원의 레슨을 종료하시겠습니까?\n\n'
+          '종료 시 출전 횟수가 1회 기록되며, 레슨 상태가 완료 처리됩니다.',
+          style: const TextStyle(fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple.shade700,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              appState.finishActiveLessons();
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('$names 회원의 레슨이 정상적으로 종료되었습니다.'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('레슨 종료 확인'),
           ),
         ],
       ),

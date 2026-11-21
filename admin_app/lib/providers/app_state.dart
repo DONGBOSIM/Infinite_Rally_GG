@@ -184,21 +184,28 @@ class AppState extends ChangeNotifier {
 
   // 4코트 레슨 모드 토글
   // ⭐️ 제 4코트가 일반 게임 진행 중(in_progress)일 때는 레슨 모드로 전환 불가 (반드시 게임 종료 또는 빈 코트일 때만 가능)
-  bool toggleLessonCourt(bool enabled) {
+  // ⭐️ 반대로 레슨 진행 중(active)인 인원이 있을 때도 일반 게임 코트로 전환 불가 (레슨 종료 후에만 가능)
+  String? toggleLessonCourt(bool enabled) {
     if (enabled) {
       final court4 = _currentGames.firstWhere(
         (g) => g.courtNumber == 4,
         orElse: () => GameMatch(courtNumber: 4, gameId: '', teamA: [], teamB: [], startTime: ''),
       );
       if (court4.courtType != 'lesson' && court4.status == 'in_progress') {
-        return false;
+        return '⚠️ 제 4코트에서 게임이 진행 중입니다. [게임 종료] 후에 레슨 모드로 전환할 수 있습니다.';
+      }
+    } else {
+      final active = activeLessonMembers;
+      if (active.isNotEmpty) {
+        final names = active.map((m) => m.name).join(', ');
+        return '⚠️ 제 4코트에서 레슨이 진행 중입니다 ($names). [레슨 종료] 후에 일반 게임 코트로 전환할 수 있습니다.';
       }
     }
 
     _isLessonCourtEnabled = enabled;
     ensureCourtsExist();
     notifyListeners();
-    return true;
+    return null;
   }
 
   void setLessonCoach(String coachName) {
@@ -753,6 +760,18 @@ class AppState extends ChangeNotifier {
 
       notifyListeners();
     }
+  }
+
+  // ⭐️ 현재 진행 중인 레슨 종료 (출전 횟수 1 증가 및 lessonStatus를 none으로 변경)
+  void finishActiveLessons() {
+    for (final member in _members) {
+      if (member.isPresent && member.lessonStatus == 'active') {
+        member.lessonStatus = 'none';
+        member.matchCountToday++;
+      }
+    }
+    _syncLessonQueue();
+    notifyListeners();
   }
 
   // ⭐️ 코트 라이프사이클 2단계: [입장] (대기 1번 팀 입장 -> in_progress로 전이, 대기열 순번 자동 전진)
